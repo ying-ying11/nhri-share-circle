@@ -1,0 +1,2217 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="description" content="國衛共享圈：國家衛生研究院院內科研物資再利用與跨研究室共享平台雛形，含瀏覽器內本機 AI。">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>國衛共享圈</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* Layout: website shell (sticky header + nav, 1120px column). One bold element: the hero drawn as a giant inventory hang-tag with a perforated stub; items repeat the tag motif small. Everything else stays quiet. */
+:root{
+  --paper:#EDF2F3; --surface:#FFFFFF; --sunk:#E2EAEC; --ink:#13232D; --muted:#55666F; --line:#CCD8DC;
+  --accent:#0D7666; --accent-weak:#D5ECE7; --on-accent:#FFFFFF;
+  --tag:#D9A42E; --tag-weak:#F7ECCD;
+  --info:#2B5B8C; --info-weak:#DCE7F3;
+  --warn:#93540A; --warn-weak:#F8E7CF;
+  --bad:#A63D2C; --bad-weak:#F6DED9;
+  --label-bg:#FFFFFF; --label-ink:#13232D;
+  --scrim:rgba(19,35,45,.45);
+  --shadow:0 1px 2px rgba(19,35,45,.06),0 8px 22px rgba(19,35,45,.08);
+  --f-sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1519; --surface:#152128; --sunk:#1C2B33; --ink:#E4ECEF; --muted:#94A6AF; --line:#2B3B43;
+    --accent:#45C3AC; --accent-weak:#163934; --on-accent:#05211C;
+    --tag:#D8AE47; --tag-weak:#3A3014;
+    --info:#86B5E8; --info-weak:#1A2C40;
+    --warn:#E6A851; --warn-weak:#3A2A12;
+    --bad:#EA8774; --bad-weak:#3D1F1A;
+    --scrim:rgba(0,0,0,.6);
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 22px rgba(0,0,0,.35);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1519; --surface:#152128; --sunk:#1C2B33; --ink:#E4ECEF; --muted:#94A6AF; --line:#2B3B43;
+  --accent:#45C3AC; --accent-weak:#163934; --on-accent:#05211C;
+  --tag:#D8AE47; --tag-weak:#3A3014;
+  --info:#86B5E8; --info-weak:#1A2C40;
+  --warn:#E6A851; --warn-weak:#3A2A12;
+  --bad:#EA8774; --bad-weak:#3D1F1A;
+  --scrim:rgba(0,0,0,.6);
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 22px rgba(0,0,0,.35);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-sans);font-size:15px;line-height:1.6}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h2{font-size:22px;line-height:1.35;margin:0;text-wrap:balance}
+h3{font-size:16px;line-height:1.4;margin:0;text-wrap:balance}
+p{margin:0}
+a{color:var(--accent)}
+.muted{color:var(--muted)}
+.tiny{font-size:12.5px;color:var(--muted);line-height:1.55}
+.lede{color:var(--muted);max-width:62ch}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.code{font-family:var(--f-mono);font-weight:600;letter-spacing:.04em;color:var(--accent)}
+
+/* demo notice */
+.demo-bar{background:var(--tag-weak);font-size:13px}
+.demo-bar .wrap{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:space-between;padding-block:6px}
+
+/* site header */
+.site-head{position:sticky;top:env(safe-area-inset-top,0px);z-index:8;background:var(--surface);border-bottom:1px solid var(--line)}
+.head-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 18px;align-items:center;padding-block:8px;position:relative}
+.brand{display:flex;gap:9px;align-items:center;appearance:none;border:0;background:none;font:inherit;color:var(--ink);cursor:pointer;padding:0}
+.brand svg{color:var(--accent);flex:none}
+.brand-name{font-weight:900;font-size:18px;letter-spacing:.06em;white-space:nowrap}
+.nav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.nav::-webkit-scrollbar{display:none}
+.navlink{appearance:none;border:0;background:none;font:inherit;font-size:14.5px;font-weight:500;color:var(--muted);padding:7px 10px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.navlink:hover{color:var(--ink);background:var(--sunk)}
+.navlink[aria-current="page"]{color:var(--accent);font-weight:700;background:var(--accent-weak)}
+.tools{display:flex;gap:8px;align-items:center}
+.icon-btn{position:relative;width:36px;height:36px;display:grid;place-items:center;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;cursor:pointer;flex:none}
+.icon-btn:hover{border-color:var(--muted)}
+.dot{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:var(--surface);font-size:11px;font-family:var(--f-mono);font-weight:600;display:grid;place-items:center}
+.role{width:auto;padding:6px 8px;font-size:13px}
+@media (max-width:1100px){
+  .head-row{grid-template-columns:auto auto;grid-template-areas:"brand tools" "nav nav"}
+  .brand{grid-area:brand}.tools{grid-area:tools;justify-self:end}.nav{grid-area:nav;margin-inline:-6px}
+}
+.notes{position:absolute;top:calc(100% + 4px);right:max(16px,env(safe-area-inset-right,0px));width:min(380px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:8px;z-index:9;max-height:70vh;overflow:auto}
+.notes h3{font-size:14px;padding:6px 10px 4px}
+.note{appearance:none;width:100%;text-align:left;border:0;background:none;font:inherit;color:var(--ink);padding:9px 10px;border-radius:8px;cursor:pointer;display:grid;gap:1px;font-size:14px;line-height:1.5}
+.note:hover{background:var(--sunk)}
+.note small{color:var(--muted);font-size:12px}
+
+main{padding-block:28px 56px}
+.page{display:grid;gap:34px}
+.page-head{display:grid;gap:6px}
+.block{display:grid;gap:14px;min-width:0}
+.block-head{display:flex;justify-content:space-between;align-items:baseline;gap:6px 14px;flex-wrap:wrap}
+.link{appearance:none;border:0;background:none;color:var(--accent);font:inherit;font-weight:600;font-size:14px;cursor:pointer;padding:0}
+.link:hover{text-decoration:underline}
+
+/* controls */
+input,select,textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%;min-width:0}
+textarea{resize:vertical}
+input[type="checkbox"],input[type="radio"]{width:auto;accent-color:var(--accent)}
+.btn{appearance:none;font:inherit;font-weight:600;font-size:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:9px 16px;border-radius:8px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.small{padding:5px 11px;font-size:13px}
+.btn.quiet{background:transparent}
+.field{display:grid;gap:5px;min-width:0}
+.field label,.legend{font-size:13px;font-weight:700}
+fieldset{border:0;padding:0;margin:0;display:grid;gap:7px;min-width:0}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.radio-row{display:flex;flex-wrap:wrap;gap:8px}
+.radio-row label{display:flex;gap:7px;align-items:center;border:1px solid var(--line);padding:7px 12px;border-radius:8px;font-size:14px;cursor:pointer}
+.radio-row label:has(input:checked){border-color:var(--accent);background:var(--accent-weak)}
+.check{display:flex;gap:7px;align-items:center;font-size:13px;color:var(--muted);cursor:pointer}
+.check.strong{color:var(--ink);font-size:14px;align-items:flex-start}
+.check.strong input{margin-top:5px}
+.form-err{color:var(--bad);font-size:13px}
+.tagpick{display:flex;flex-wrap:wrap;gap:6px}
+.pick{border:1px solid var(--line);border-radius:999px;padding:4px 11px;font-size:13px;cursor:pointer;position:relative}
+.pick input{position:absolute;opacity:0;pointer-events:none}
+.pick:has(input:checked){background:var(--accent-weak);border-color:var(--accent);color:var(--accent);font-weight:600}
+.pick:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+
+/* hero hang-tag */
+.hero-tag{--notch:30px;position:relative;background:var(--line);padding:1.5px;clip-path:polygon(var(--notch) 0,100% 0,100% 100%,var(--notch) 100%,0 calc(100% - var(--notch)),0 var(--notch))}
+.hero-in{background:var(--surface);clip-path:polygon(calc(var(--notch) - .6px) 0,100% 0,100% 100%,calc(var(--notch) - .6px) 100%,0 calc(100% - var(--notch) + .6px),0 calc(var(--notch) - .6px));display:grid;grid-template-columns:minmax(0,1fr) 230px}
+.hero-hole{position:absolute;left:22px;top:50%;width:18px;height:18px;margin-top:-9px;border-radius:50%;background:var(--paper);border:1.5px solid var(--line);z-index:1}
+.hero-main{padding:38px 40px 34px 62px;display:grid;gap:16px;align-content:start}
+.hero-main h1{font-size:clamp(31px,5.4vw,54px);font-weight:900;line-height:1.14;letter-spacing:.02em;margin:0;text-wrap:balance}
+.hero-sub{font-size:16.5px;color:var(--muted);max-width:44ch}
+.hero-stub{border-left:2px dashed var(--line);padding:30px 26px;display:grid;gap:18px;align-content:center;background:var(--surface)}
+.hero-stub .s{display:grid;gap:0}
+.hero-stub dt{font-size:12.5px;color:var(--muted)}
+.hero-stub dd{margin:0;font-family:var(--f-mono);font-size:30px;font-weight:600;line-height:1.15;font-variant-numeric:tabular-nums}
+.hero-stub dd small{font-size:14px;color:var(--muted);font-weight:500;margin-right:3px}
+.hero-id{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);letter-spacing:.08em}
+@media (max-width:820px){
+  .hero-in{grid-template-columns:1fr}
+  .hero-main{padding:30px 22px 26px 50px}
+  .hero-stub{border-left:0;border-top:2px dashed var(--line);grid-template-columns:repeat(2,minmax(0,1fr));padding:20px 22px 22px 50px}
+  .hero-stub .hero-id{grid-column:1/-1}
+  .hero-hole{top:44px;margin-top:0;left:18px}
+  .hero-tag{--notch:22px}
+}
+
+/* lookup */
+.lookup{display:grid;gap:8px;max-width:680px}
+.lookup-row{display:flex;gap:8px}
+.lookup-row input{flex:1;font-size:16px}
+.hint{font-size:13px;color:var(--muted)}
+.lookup.boxed{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;max-width:none}
+.lookup-label{font-weight:700;font-size:17px}
+
+/* flow, services, event, board */
+.flow4{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;counter-reset:f}
+.flow4 li{border-top:3px solid var(--accent);padding-top:10px;display:grid;gap:3px;align-content:start}
+.flow4 li::before{counter-increment:f;content:counter(f);font-family:var(--f-mono);color:var(--accent);font-weight:600;font-size:14px}
+.flow4 strong{font-size:15.5px}
+.flow4 p{font-size:13.5px;color:var(--muted)}
+@media (max-width:760px){.flow4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:440px){.flow4{grid-template-columns:1fr}}
+.svc-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:900px){.svc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:540px){.svc-grid{grid-template-columns:1fr}}
+.svc{appearance:none;text-align:left;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:grid;gap:6px;cursor:pointer;align-content:start}
+.svc:hover{border-color:var(--accent)}
+.svc-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.svc-title{font-weight:700;font-size:16px}
+.svc-n{font-family:var(--f-mono);font-size:13px;color:var(--accent);font-weight:600;white-space:nowrap}
+.svc p{font-size:13.5px;color:var(--muted)}
+.event{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:16px 22px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+.datebox{border:1.5px solid var(--accent);border-radius:8px;padding:8px 14px;text-align:center;font-family:var(--f-mono);color:var(--accent);line-height:1.2}
+.datebox b{display:block;font-size:28px}
+.datebox span{font-family:var(--f-sans);font-size:13px;font-weight:700}
+.event-body{display:grid;gap:4px;min-width:0}
+@media (max-width:640px){.event{grid-template-columns:auto minmax(0,1fr)}.event > .btnrow{grid-column:1/-1}}
+.board{display:grid;gap:11px}
+.b-row{display:grid;grid-template-columns:20px minmax(0,1.25fr) minmax(0,1fr);gap:4px 12px;align-items:center;font-size:14px}
+.b-rank{font-family:var(--f-mono);color:var(--muted);font-weight:600}
+.b-bar{height:10px;background:var(--sunk);border-radius:3px;overflow:hidden}
+.b-fill{height:100%;background:var(--accent);border-radius:3px}
+.b-meta{grid-column:2/-1;font-size:12.5px;color:var(--muted);margin-top:-4px}
+.refs{display:grid;gap:14px}
+.ref{display:grid;gap:2px;font-size:14px}
+.ref a{font-weight:700;text-decoration:none}
+.ref a:hover{text-decoration:underline}
+.ref p{color:var(--muted);font-size:13.5px}
+
+/* tag cards */
+.filters{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-top:16px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.pill{font:inherit;font-size:13px;padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.pill[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.sel{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+.sel select{width:auto;padding:5px 9px;font-size:13px}
+.summary{font-size:14px;color:var(--muted);min-height:1.6em;margin-block:4px 2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.tagcard{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);display:flex;flex-direction:column}
+.tagcard:hover{box-shadow:var(--shadow)}
+.tag-hole{position:absolute;top:14px;right:14px;width:12px;height:12px;border-radius:50%;border:1.5px solid var(--line);background:var(--paper)}
+.tag-body{padding:15px 16px 14px;display:grid;gap:8px;flex:1;align-content:start}
+.tag-head{display:flex;gap:8px;align-items:baseline;font-size:12px;color:var(--muted);padding-right:24px}
+.card-link{appearance:none;border:0;background:none;padding:0;font:inherit;font-weight:700;font-size:16px;line-height:1.45;color:var(--ink);text-align:left;cursor:pointer}
+.card-link::after{content:"";position:absolute;inset:0;border-radius:var(--r)}
+.card-link:focus-visible{outline:none}
+.card-link:focus-visible::after{outline:2px solid var(--accent);outline-offset:2px}
+.meta{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:2px 12px;font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;font-weight:700;padding:1px 8px;border-radius:4px;background:var(--sunk);color:var(--muted);line-height:1.7}
+.chip.transfer,.chip.ok{background:var(--accent-weak);color:var(--accent)}
+.chip.lend{background:var(--info-weak);color:var(--info)}
+.chip.warn{background:var(--warn-weak);color:var(--warn)}
+.chip.pending{background:var(--tag-weak);color:var(--warn)}
+.chip.bad{background:var(--bad-weak);color:var(--bad)}
+.chip.match{background:transparent;border:1px dashed var(--accent);color:var(--accent);font-weight:500}
+.chip.match.ai{border-color:var(--info);color:var(--info)}
+.chip.new{background:transparent;border:1px solid var(--tag);color:var(--warn)}
+.warnline{font-size:12.5px;color:var(--warn);line-height:1.5}
+.tag-stub{border-top:1.5px dashed var(--line);padding:9px 16px;display:flex;justify-content:space-between;gap:10px;font-family:var(--f-mono);font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tag-stub span:last-child{font-family:var(--f-sans);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.tagcard.dim .card-link{color:var(--muted)}
+.empty{grid-column:1/-1;border:1.5px dashed var(--line);border-radius:var(--r);padding:22px;display:grid;gap:12px;background:var(--surface);justify-items:start}
+.empty strong{font-size:16px}
+.code-out{font-family:var(--f-mono);font-size:15px;background:var(--sunk);padding:7px 8px 7px 12px;border-radius:6px;display:inline-flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+/* panels and layouts */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;min-width:0;display:grid;gap:14px;align-content:start}
+.two{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:20px;align-items:start}
+.two.even{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:860px){.two,.two.even{grid-template-columns:1fr}.need-two > form{order:-1}}
+.subnav{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.subtab{appearance:none;border:0;background:none;font:inherit;font-weight:500;color:var(--muted);padding:10px 14px 9px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.subtab:hover{color:var(--ink)}
+.subtab[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--accent)}
+.subtab .n{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-left:5px;font-weight:500}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start}
+.steps li::before{counter-increment:s;content:counter(s);width:26px;height:26px;border-radius:50%;border:1.5px solid var(--accent);color:var(--accent);display:grid;place-items:center;font-family:var(--f-mono);font-size:13px;font-weight:600}
+.steps p,.list{font-size:13.5px;color:var(--muted)}
+.list{margin:0;padding-left:18px;display:grid;gap:4px}
+.ai-box{border:1.5px dashed var(--accent);border-radius:var(--r);padding:14px;display:flex;gap:14px;align-items:center}
+.ai-thumb{width:72px;height:72px;flex:none;border-radius:8px;background:var(--sunk);border:1px solid var(--line);display:grid;place-items:center;overflow:hidden;font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.ai-thumb img{width:100%;height:100%;object-fit:cover}
+.ai-copy{display:grid;gap:6px;min-width:0}
+.ai-copy p{font-size:13px;color:var(--muted)}
+.ok-box{border:1px solid var(--accent);background:var(--accent-weak);border-radius:8px;padding:12px 14px;display:grid;gap:8px;font-size:14px}
+.ok-box ul{margin:0;padding-left:18px}
+
+/* requests, rows */
+.stack{display:grid;gap:12px;min-width:0}
+.req{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:10px}
+.req-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.req-text{font-weight:700;font-size:15.5px;line-height:1.5}
+.req-meta{font-size:12.5px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
+.badge{font-size:12px;font-weight:700;padding:2px 8px;border-radius:4px;white-space:nowrap;flex:none}
+.badge.ok{background:var(--accent-weak);color:var(--accent)}
+.badge.wait{background:var(--tag-weak);color:var(--warn)}
+.badge.bad{background:var(--bad-weak);color:var(--bad)}
+.badge.info{background:var(--info-weak);color:var(--info)}
+.cand{display:flex;gap:12px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:9px}
+.cand + .cand{margin-top:0}
+.cand-main{display:grid;gap:4px;min-width:0}
+.cand-name{font-size:14px;font-weight:600}
+.q-row{display:flex;gap:12px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px;flex-wrap:wrap}
+.q-main{display:grid;gap:2px;min-width:0;flex:1 1 220px}
+.q-main b{font-size:14.5px}
+
+/* borrowing */
+.legend-row{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--muted)}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.sw.free{background:var(--accent-weak);border:1px solid var(--accent)}
+.sw.wait{background:var(--tag-weak);border:1px solid var(--tag)}
+.sw.busy{background:var(--sunk);border:1px solid var(--line)}
+.lend{display:grid;grid-template-columns:minmax(170px,1fr) minmax(0,2fr) auto;gap:12px 20px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.lend-info{display:grid;gap:3px;min-width:0}
+.lend-info .card-link{font-size:15px}
+.lend-info .card-link::after{display:none}
+@media (max-width:720px){.lend{grid-template-columns:1fr}}
+.strip{display:grid;grid-template-columns:repeat(14,minmax(0,1fr));gap:3px;min-width:0}
+.day{display:flex;flex-direction:column;align-items:center;justify-content:center;height:40px;border-radius:4px;background:var(--accent-weak);color:var(--accent);font-family:var(--f-mono);font-size:11.5px;line-height:1.2;font-variant-numeric:tabular-nums}
+.day .wd{font-family:var(--f-sans);font-size:10px;opacity:.8}
+.day.wait{background:var(--tag-weak);color:var(--warn)}
+.day.busy{background:var(--sunk);color:var(--muted)}
+.day.busy b{text-decoration:line-through;font-weight:500}
+.day b{font-weight:600}
+
+/* repair */
+.kanban{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:960px){.kanban{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.kanban{grid-template-columns:1fr}}
+.k-col{background:var(--sunk);border-radius:var(--r);padding:10px;display:grid;gap:8px;align-content:start;min-width:0}
+.k-head{display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:2px 4px}
+.k-head span:last-child{font-family:var(--f-mono);color:var(--muted)}
+.k-card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:5px;font-size:13px}
+.k-card b{font-size:14px;line-height:1.45}
+.k-rec{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 8px;font-size:12.5px;margin:0}
+.k-rec dt{color:var(--muted)}
+.k-rec dd{margin:0}
+.cap{display:grid;gap:6px}
+.cap-bar{height:10px;background:var(--sunk);border-radius:5px;overflow:hidden}
+.cap-fill{height:100%;background:var(--accent);border-radius:5px}
+
+/* skills */
+.rules{display:flex;flex-wrap:wrap;gap:8px}
+.skill{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:grid;gap:8px}
+.skill-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.ex{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:10px;align-content:start}
+.ex dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 12px;margin:0;font-size:13.5px}
+.ex dt{color:var(--muted);white-space:nowrap}
+.ex dd{margin:0}
+
+/* impact */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:14px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:4px;align-content:start}
+.tier{font-size:12.5px;color:var(--muted);font-weight:700}
+.big{font-family:var(--f-mono);font-size:29px;font-weight:600;line-height:1.25;font-variant-numeric:tabular-nums}
+.big small{font-size:13px;color:var(--muted);font-weight:500;margin-left:4px;font-family:var(--f-sans)}
+.tile p{font-size:13px;color:var(--muted)}
+.funnel{display:grid;gap:11px}
+.f-row{display:grid;grid-template-columns:76px minmax(0,1fr) 34px;gap:10px;align-items:center;font-size:13.5px}
+.f-bar{height:14px;background:var(--sunk);border-radius:3px;overflow:hidden}
+.f-fill{height:100%;background:var(--accent);border-radius:3px}
+.f-num{font-family:var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
+.defs{margin:0;padding-left:18px;display:grid;gap:7px;font-size:13.5px;color:var(--muted)}
+.defs b{color:var(--ink)}
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+.log-table{min-width:780px}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:12.5px;color:var(--muted);font-weight:700;background:var(--sunk)}
+tr:last-child td{border-bottom:0}
+td.num{font-family:var(--f-mono);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.date{font-family:var(--f-mono);white-space:nowrap;font-variant-numeric:tabular-nums}
+.flow{font-size:12.5px;color:var(--muted)}
+.report{font-family:var(--f-mono);font-size:13px;line-height:1.7;min-height:230px;background:var(--sunk)}
+
+/* about */
+.gov{min-width:640px}
+.roadmap{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.roadmap li{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:6px;align-content:start}
+.phase{font-size:13px;color:var(--accent);font-weight:700}
+.roadmap ul{margin:0;padding-left:18px;font-size:13.5px;color:var(--muted);display:grid;gap:3px}
+@media (max-width:800px){.roadmap{grid-template-columns:1fr}}
+.faq{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:4px 18px}
+.faq details{border-top:1px solid var(--line);padding-block:12px}
+.faq details:first-child{border-top:0}
+.faq summary{font-weight:700;cursor:pointer}
+.faq details p{color:var(--muted);font-size:14px;margin-top:6px;max-width:68ch}
+.pains{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.pains div{display:grid;gap:4px;border-left:3px solid var(--tag);padding-left:12px}
+.pains p{font-size:14px;color:var(--muted)}
+@media (max-width:760px){.pains{grid-template-columns:1fr}}
+
+/* me */
+.points{display:flex;align-items:baseline;gap:8px}
+.points b{font-family:var(--f-mono);font-size:40px;line-height:1;color:var(--accent)}
+
+/* footer */
+.foot{border-top:1px solid var(--line);padding-block:22px 40px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;font-size:13px;color:var(--muted)}
+.foot strong{display:block;color:var(--ink);font-size:13px;margin-bottom:4px}
+
+/* local AI */
+.ai-btn{display:inline-flex;gap:7px;align-items:center;height:36px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:0 11px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;flex:none}
+.ai-btn:hover{border-color:var(--muted)}
+.ai-dot{width:9px;height:9px;border-radius:50%;background:var(--line);flex:none}
+.ai-dot.ready{background:var(--accent)}
+.ai-dot.loading{background:var(--tag)}
+.ai-dot.error{background:var(--bad)}
+.ai-sec{display:grid;gap:10px;border-top:1px solid var(--line);padding-top:14px}
+.ai-sec input[type="range"]{padding:0;border:0;accent-color:var(--accent)}
+.ai-state{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:14px}
+.ocr-raw summary{cursor:pointer;font-size:13px;color:var(--muted)}
+.ocr-raw pre{white-space:pre-wrap;font-family:var(--f-mono);font-size:12px;background:var(--sunk);padding:10px;border-radius:6px;max-height:180px;overflow:auto;margin:6px 0 0}
+.bulk-table{min-width:640px}
+.ai-chip{background:var(--info-weak);color:var(--info)}
+@media (max-width:420px){.brand-name{font-size:16px}.tools{gap:6px}.role{max-width:92px}}
+
+/* modal, label, toast */
+.overlay{position:fixed;inset:0;background:var(--scrim);display:grid;place-items:center;z-index:20;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.modal{background:var(--surface);color:var(--ink);border-radius:12px;width:min(580px,100%);max-height:100%;overflow:auto;padding:22px;position:relative;box-shadow:var(--shadow)}
+.modal:focus{outline:none}
+#mBody{display:grid;gap:16px}
+.x{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:8px;border:0;background:transparent;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
+.x:hover{background:var(--sunk);color:var(--ink)}
+.m-head{display:grid;gap:6px;padding-right:34px}
+.m-head h3{font-size:19px}
+.dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 18px;margin:0;font-size:14px}
+.dl dt{color:var(--muted)}
+.dl dd{margin:0}
+.stepper{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.stepper li{font-size:12px;text-align:center;padding-top:8px;border-top:3px solid var(--line);color:var(--muted)}
+.stepper li.done{border-color:var(--accent);color:var(--ink)}
+.stepper li.now{border-color:var(--tag);color:var(--ink);font-weight:700}
+.modal form{display:grid;gap:14px}
+.label{display:flex;gap:12px;align-items:center;background:var(--label-bg);color:var(--label-ink);border:1px dashed var(--line);border-radius:8px;padding:12px;max-width:340px}
+.qr{width:88px;height:88px;flex:none;display:grid;place-items:center;font-family:var(--f-mono);font-size:10px}
+.qr img,.qr canvas{width:88px!important;height:88px!important}
+.label-txt{display:grid;gap:1px;font-size:12px;min-width:0;line-height:1.45}
+.label-txt b{font-size:13px}
+.label-txt .lid{font-family:var(--f-mono);font-weight:600;font-size:13px}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,8px);background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:8px;font-size:14px;line-height:1.5;width:max-content;max-width:min(540px,calc(100% - 32px));opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:30}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:560px){
+  .lookup-row{flex-wrap:wrap}
+  .lookup-row .btn{width:100%}
+  .ai-box{align-items:flex-start}
+  .hero-stub dd{font-size:24px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<div class="demo-bar"><div class="wrap">
+  <span><strong>雛形示範</strong>｜物資、單位與數字皆為示範資料，不會儲存；重新整理即恢復。本機 AI 在你的瀏覽器裡執行。</span>
+  <button class="btn small quiet" id="resetBtn" type="button">重設示範資料</button>
+</div></div>
+
+<header class="site-head">
+  <div class="wrap head-row">
+    <button class="brand" type="button" data-go="home" aria-label="國衛共享圈首頁">
+      <svg width="30" height="30" viewBox="0 0 40 40" aria-hidden="true">
+        <path d="M5 13 14 4h20a2 2 0 0 1 2 2v28a2 2 0 0 1-2 2H14l-9-9z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/>
+        <circle cx="12.5" cy="20" r="2.5" fill="currentColor"/>
+        <path d="M23 14.2a6 6 0 1 1-3.6 9.6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+        <path d="M17.6 21.2l1.8 2.8 3-1.3" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="brand-name">國衛共享圈</span>
+    </button>
+    <nav class="nav" id="nav" aria-label="網站導覽">
+      <button class="navlink" type="button" data-go="home">首頁</button>
+      <button class="navlink" type="button" data-go="items">物資</button>
+      <button class="navlink" type="button" data-go="borrow">借用</button>
+      <button class="navlink" type="button" data-go="repair">修好再用</button>
+      <button class="navlink" type="button" data-go="skills">技能互助</button>
+      <button class="navlink" type="button" data-go="swap">交換日</button>
+      <button class="navlink" type="button" data-go="impact">成果</button>
+      <button class="navlink" type="button" data-go="about">關於</button>
+      <button class="navlink" type="button" data-go="admin" id="navAdmin" hidden>管理</button>
+    </nav>
+    <div class="tools">
+      <button class="ai-btn" type="button" id="aiBtn" data-act="aiSettings" aria-label="本機 AI 設定"><span class="ai-dot" id="aiDot"></span><span>AI</span></button>
+      <button class="icon-btn" type="button" id="bellBtn" aria-label="通知" aria-expanded="false" aria-controls="notes">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        <span class="dot" id="bellN" hidden></span>
+      </button>
+      <button class="btn small" type="button" data-go="me">我的</button>
+      <label class="sr-only" for="roleSel">示範身分</label>
+      <select id="roleSel" class="role"><option value="staff">同仁視角</option><option value="admin">管理端視角</option></select>
+    </div>
+    <div class="notes" id="notes" hidden role="region" aria-label="通知"></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- HOME -->
+<section class="page" id="pg-home">
+  <div class="hero-tag">
+    <span class="hero-hole" aria-hidden="true"></span>
+    <div class="hero-in">
+      <div class="hero-main">
+        <h1>先在院內找，<br>再決定要不要買。</h1>
+        <p class="hero-sub">各研究室用不到的耗材、零件和小工具，媒合給正需要的人。也能借用、送修、找人幫忙。</p>
+        <form class="lookup" id="heroLookup" role="search">
+          <label class="sr-only" for="hq">準備採購的物品</label>
+          <div class="lookup-row">
+            <input id="hq" type="search" autocomplete="off" placeholder="準備買什麼？例如：鋁型材、1000 µL tips">
+            <button class="btn primary" type="submit">先查共享圈</button>
+          </div>
+          <p class="hint" id="heroHint">支援同義詞：輸入「鋁型材」也找得到「鋁擠型」。</p>
+        </form>
+      </div>
+      <dl class="hero-stub" id="heroStats"></dl>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2>怎麼運作</h2>
+    <ol class="flow4">
+      <li><strong>上架或徵求</strong><p>有多的就上架，缺什麼就發徵求。拍照可自動帶入品名與效期。</p></li>
+      <li><strong>智慧媒合</strong><p>依品名、同義詞和規格比對供給與需求，符合就通知雙方。</p></li>
+      <li><strong>交付或借用</strong><p>物品留在原研究室，媒合成功才交付；財產品項比照現行調撥。</p></li>
+      <li><strong>回報使用</strong><p>回報是否真的用上、是否取消原定採購，成效才算數。</p></li>
+    </ol>
+  </div>
+
+  <div class="block">
+    <div class="block-head"><h2>近效期，優先領取</h2><button class="link" type="button" data-go="items">看全部物資</button></div>
+    <div class="grid" id="homeSoon"></div>
+  </div>
+
+  <div class="block">
+    <div class="block-head"><h2>最新上架</h2><button class="link" type="button" data-go="items" data-sub="offer">我也要上架</button></div>
+    <div class="grid" id="homeNew"></div>
+  </div>
+
+  <div class="block">
+    <h2>不只轉讓物資</h2>
+    <div class="svc-grid" id="svcGrid"></div>
+  </div>
+
+  <div class="event" id="homeEvent"></div>
+
+  <div class="two even">
+    <div class="panel">
+      <div class="block-head"><h3>研究室貢獻榜</h3><button class="link" type="button" data-go="impact">看成果</button></div>
+      <div class="board" id="homeBoard"></div>
+      <p class="tiny">依提供物資與協助他人的次數排序，僅供鼓勵，不與任何考核連動。</p>
+    </div>
+    <div class="panel">
+      <h3>國外研究機構怎麼做</h3>
+      <div class="refs">
+        <div class="ref"><a href="https://sharewel.riise.u-tokyo.ac.jp" target="_blank" rel="noopener">東京大學 ShareWel</a><p>工學研究團隊開發的校內物品再利用平台，上架前由各單位資產負責人核准，獲 2024 年度業務改革總長賞。</p></div>
+        <div class="ref"><a href="https://sustainability.mit.edu/article/mit-sized-neighborhood-swap" target="_blank" rel="noopener">MIT Rheaply</a><p>研究室可刊登剩餘設備，也能張貼自己需要的物資；有財產標籤的物品需經財產單位審查。</p></div>
+        <div class="ref"><a href="https://michigannow.vpcomm.umich.edu/?p=68069" target="_blank" rel="noopener">密西根大學 Lab Swap Shop</a><p>2024 年開設實體交換空間，不到兩年為研究人員省下超過 100 萬美元。</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ITEMS -->
+<section class="page" id="pg-items" hidden>
+  <div class="page-head">
+    <h2>物資</h2>
+    <p class="lede">未拆封耗材、醫工零件、小工具與辦公用品。院內轉讓不收費，物品先留在原研究室，媒合成功才交付。</p>
+  </div>
+  <div class="block">
+    <div class="subnav" role="tablist" aria-label="物資功能">
+      <button class="subtab" role="tab" type="button" data-sub="find" id="st-find" aria-controls="sub-find">找物資</button>
+      <button class="subtab" role="tab" type="button" data-sub="offer" id="st-offer" aria-controls="sub-offer">我要上架</button>
+      <button class="subtab" role="tab" type="button" data-sub="need" id="st-need" aria-controls="sub-need">徵求牆<span class="n" id="nNeed"></span></button>
+      <button class="subtab" role="tab" type="button" data-sub="bulk" id="st-bulk" aria-controls="sub-bulk">請購清單比對</button>
+    </div>
+
+    <div id="sub-find" role="tabpanel" aria-labelledby="st-find" class="block">
+      <form class="lookup boxed" id="lookupForm" role="search">
+        <label class="lookup-label" for="q">準備採購前，先查共享圈</label>
+        <div class="lookup-row">
+          <input id="q" type="search" autocomplete="off" placeholder="例如：鋁型材、1000 µL tips、腳架">
+          <button class="btn primary" type="submit">查詢</button>
+        </div>
+        <p class="hint" id="findHint">同義詞媒合：輸入「鋁型材」也找得到「鋁擠型」，輸入「tips」也找得到「吸管尖」。</p>
+      </form>
+      <div class="filters">
+        <div class="seg" id="catSeg" role="group" aria-label="類別"></div>
+        <label class="sel" for="modeSel">提供方式
+          <select id="modeSel"><option value="all">全部</option><option value="transfer">可轉讓</option><option value="lend">可借用</option></select>
+        </label>
+        <label class="check" for="soonChk"><input type="checkbox" id="soonChk"> 只看 60 天內到期</label>
+        <button class="btn small" type="button" id="followBtn" hidden></button>
+      </div>
+      <p class="summary" id="findSummary" aria-live="polite"></p>
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div id="sub-offer" role="tabpanel" aria-labelledby="st-offer" hidden>
+      <div class="two">
+        <form class="panel" id="offerForm" novalidate>
+          <div class="ai-box">
+            <div class="ai-thumb"><span id="aiPh">PHOTO</span><img id="aiImg" alt="已選擇的物品照片" hidden></div>
+            <div class="ai-copy">
+              <strong>拍照即上架</strong>
+              <p>拍下物品標籤，在你的瀏覽器裡讀出品名、規格與效期，確認後就能送出。</p>
+              <div class="btnrow">
+                <label class="btn small" for="photo">選擇照片</label>
+                <input type="file" id="photo" accept="image/*" class="sr-only">
+                <button type="button" class="btn small primary" id="ocrBtn" disabled>辨識標籤</button>
+                <button type="button" class="btn small quiet" id="aiFill">填入示範結果</button>
+              </div>
+              <p class="tiny" id="aiNote">選擇照片後按「辨識標籤」。第一次會下載中英文辨識資料，照片不會上傳。</p>
+            </div>
+          </div>
+          <details class="ocr-raw" id="ocrRaw" hidden><summary>辨識出的原始文字</summary><pre id="ocrText"></pre></details>
+          <div class="field"><label for="of-name">品名與規格</label><input id="of-name" placeholder="例如：1000 µL 微量吸管尖（盒裝 96 支）"></div>
+          <div class="row">
+            <div class="field"><label for="of-cat">類別</label><select id="of-cat"></select></div>
+            <div class="field"><label for="of-cond">狀態</label><select id="of-cond"><option>全新未拆</option><option>良好</option><option>堪用</option></select></div>
+          </div>
+          <fieldset>
+            <legend class="legend">提供方式</legend>
+            <div class="radio-row">
+              <label for="of-mode-t"><input type="radio" name="of-mode" id="of-mode-t" value="transfer" checked> 轉讓（不用歸還）</label>
+              <label for="of-mode-l"><input type="radio" name="of-mode" id="of-mode-l" value="lend"> 出借（用完歸還）</label>
+            </div>
+          </fieldset>
+          <div class="row">
+            <div class="field"><label for="of-qty">數量</label><input id="of-qty" type="number" min="1" value="1" inputmode="numeric"></div>
+            <div class="field"><label for="of-unit">單位</label><input id="of-unit" value="個"></div>
+            <div class="field"><label for="of-exp">效期（耗材才填）</label><input id="of-exp" type="date"></div>
+          </div>
+          <div class="row">
+            <div class="field"><label for="of-lab">所屬單位</label><select id="of-lab"></select></div>
+            <div class="field"><label for="of-loc">存放位置</label><input id="of-loc" placeholder="例如：示範大樓 3F"></div>
+          </div>
+          <label class="check strong" for="of-asset"><input type="checkbox" id="of-asset"> 這是院內財產（貼有財產標籤），需財產管理窗口核可</label>
+          <div class="btnrow"><button class="btn primary" type="submit">送出上架</button><span class="form-err" id="ofErr" role="alert"></span></div>
+          <div id="ofResult" aria-live="polite"></div>
+        </form>
+        <aside class="panel">
+          <h3>上架流程</h3>
+          <ol class="steps">
+            <li><div><strong>填寫物資資訊</strong><p>規格、狀態、數量、效期與存放位置。</p></div></li>
+            <li><div><strong>保管人確認</strong><p>確認物品可以轉讓或出借。</p></div></li>
+            <li><div><strong>財產窗口核可</strong><p>只有貼財產標籤的品項需要，比照現行調撥程序。</p></div></li>
+            <li><div><strong>公開媒合</strong><p>同時比對徵求牆，符合就通知徵求者。</p></div></li>
+          </ol>
+          <h3>第一階段不收</h3>
+          <ul class="list">
+            <li>人體檢體、生物材料、感染性材料</li>
+            <li>危險化學品與管制藥品</li>
+            <li>已開封或保存條件不明的試劑</li>
+            <li>權屬不明的物品、私人物品</li>
+          </ul>
+          <p class="tiny">超過 30 天沒有媒合的物品，會提醒保管人重新確認或下架。</p>
+        </aside>
+      </div>
+    </div>
+
+    <div id="sub-bulk" role="tabpanel" aria-labelledby="st-bulk" class="block" hidden>
+      <div class="two">
+        <form class="panel" id="bulkForm" novalidate>
+          <h3>貼上準備採購的清單</h3>
+          <p class="tiny">一行一項。系統會逐項比對院內是否已有可用物資；開啟本機 AI 後，寫法不同也比對得到。</p>
+          <label class="sr-only" for="bulkText">採購清單</label>
+          <textarea id="bulkText" rows="7">1000 µL tips 5 盒
+鋁型材 2020 規格 6 支
+檢驗用手套 M 號
+醫療級 USB 隔離器
+保冷箱 4 個</textarea>
+          <div class="btnrow"><button class="btn primary" type="submit">逐項比對</button><span class="tiny" id="bulkStatus" aria-live="polite"></span></div>
+        </form>
+        <aside class="panel">
+          <h3>怎麼用在請購流程</h3>
+          <ul class="list">
+            <li>送出請購前貼上清單，確認院內沒有可用物資</li>
+            <li>每次比對都會產生一組查詢紀錄編號，可以附在請購單上</li>
+            <li>比對結果只是候選，規格與相容性請與保管人確認</li>
+          </ul>
+        </aside>
+      </div>
+      <div id="bulkResult" class="block" hidden></div>
+    </div>
+
+    <div id="sub-need" role="tabpanel" aria-labelledby="st-need" hidden>
+      <div class="two need-two">
+        <div class="stack" id="reqList"></div>
+        <form class="panel" id="needForm" novalidate>
+          <h3>發出徵求</h3>
+          <p class="tiny">還沒有人上架也沒關係。先說你需要什麼，之後有符合的物品上架會通知你。</p>
+          <div class="field"><label for="nd-text">需要什麼？</label><textarea id="nd-text" rows="3" placeholder="例如：找 2020 鋁型材 4 支，做感測器支架"></textarea></div>
+          <div class="row">
+            <div class="field"><label for="nd-qty">數量</label><input id="nd-qty" placeholder="例如：4 支"></div>
+            <div class="field"><label for="nd-date">需要日期</label><input id="nd-date" type="date"></div>
+          </div>
+          <div class="field"><label for="nd-lab">所屬單位</label><select id="nd-lab"></select></div>
+          <div class="btnrow"><button class="btn primary" type="submit">發出徵求</button><span class="form-err" id="ndErr" role="alert"></span></div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BORROW -->
+<section class="page" id="pg-borrow" hidden>
+  <div class="page-head">
+    <h2>工具借用</h2>
+    <p class="lede">不常用的小工具，不必每間研究室都買一台。以下是可出借品項未來 14 天的狀態；大型核心儀器請依院內現行預約方式辦理。</p>
+  </div>
+  <div class="panel" id="myLend" hidden></div>
+  <div class="block">
+    <div class="legend-row" aria-hidden="true"><span><i class="sw free"></i>可借</span><span><i class="sw wait"></i>申請中</span><span><i class="sw busy"></i>已借出</span></div>
+    <div class="stack" id="lendList"></div>
+  </div>
+</section>
+
+<!-- REPAIR -->
+<section class="page" id="pg-repair" hidden>
+  <div class="page-head">
+    <h2>修好再用</h2>
+    <p class="lede">東西壞了先別丟。醫工團隊提供小型維修與診斷，並把修法和配件設計留下來，下一個人就不用從頭摸索。</p>
+  </div>
+  <div class="two">
+    <form class="panel" id="repairForm" novalidate>
+      <h3>送修申請</h3>
+      <div class="field"><label for="rp-name">物品</label><input id="rp-name" placeholder="例如：攝影燈調光旋鈕"></div>
+      <div class="field"><label for="rp-issue">問題描述</label><textarea id="rp-issue" rows="3" placeholder="例如：旋鈕斷裂，無法調整亮度"></textarea></div>
+      <div class="field"><label for="rp-lab">所屬單位</label><select id="rp-lab"></select></div>
+      <label class="check strong" for="rp-ok"><input type="checkbox" id="rp-ok"> 我確認這不是臨床醫材，也不涉及高壓電、雷射或其他安全關鍵功能</label>
+      <div class="btnrow"><button class="btn primary" type="submit">送出申請</button><span class="form-err" id="rpErrF" role="alert"></span></div>
+    </form>
+    <aside class="panel">
+      <h3>本月維修工時</h3>
+      <div class="cap" id="capBox"></div>
+      <h3>受理範圍</h3>
+      <ul class="list"><li>支架、外殼、旋鈕、卡榫等機構件</li><li>線材、接頭的壓接與更換</li><li>非臨床用途的電子教具與展示品</li></ul>
+      <h3>不受理</h3>
+      <ul class="list"><li>臨床醫材、高壓電與雷射設備</li><li>仍在原廠保固期內的儀器</li><li>原廠密封、需專用工具的零件</li></ul>
+    </aside>
+  </div>
+  <div class="block">
+    <div class="block-head"><h2>維修看板</h2><span class="tiny" id="kanbanHint"></span></div>
+    <div class="kanban" id="kanban"></div>
+  </div>
+  <div class="block">
+    <div class="block-head"><h2>配件設計圖庫</h2><span class="tiny">非安全關鍵配件；列印成功不代表可用於正式量測或臨床。</span></div>
+    <div class="grid" id="designGrid"></div>
+  </div>
+</section>
+
+<!-- SKILLS -->
+<section class="page" id="pg-skills" hidden>
+  <div class="page-head">
+    <h2>技能互助</h2>
+    <p class="lede">用專長幫彼此解決一個問題。不知道該找誰的時候，先來這裡看看。</p>
+    <div class="rules"><span class="chip">自願參與</span><span class="chip">單次 30 分鐘</span><span class="chip">協助釐清，不代做整份工作</span><span class="chip">需經主管同意</span></div>
+  </div>
+  <div class="two even">
+    <div class="block">
+      <div class="block-head"><h3>我可以協助</h3><button class="btn small" type="button" data-act="addSkill">登錄我的專長</button></div>
+      <div class="stack" id="skillList"></div>
+    </div>
+    <div class="block">
+      <h3>我卡關了</h3>
+      <form class="panel" id="helpForm" novalidate>
+        <div class="field"><label for="hp-text">遇到什麼問題？</label><textarea id="hp-text" rows="2" placeholder="例如：Arduino 讀感測器數值一直跳動"></textarea></div>
+        <fieldset><legend class="legend">相關領域</legend><div class="tagpick" id="hpTags"></div></fieldset>
+        <div class="btnrow"><button class="btn primary" type="submit">送出求助</button><span class="form-err" id="hpErr" role="alert"></span></div>
+      </form>
+      <div class="stack" id="helpList"></div>
+    </div>
+  </div>
+  <div class="block">
+    <div class="block-head"><h2>排錯經驗卡</h2><span class="tiny">每次協助完成，經雙方同意後留下一張卡。</span></div>
+    <label class="sr-only" for="exQ">搜尋經驗卡</label>
+    <input id="exQ" type="search" placeholder="搜尋症狀，例如：雜訊、方向、亂碼" style="max-width:420px">
+    <div class="grid" id="exGrid"></div>
+  </div>
+</section>
+
+<!-- SWAP -->
+<section class="page" id="pg-swap" hidden>
+  <div class="page-head">
+    <h2>實體交換日</h2>
+    <p class="lede">帶來用不到的，挑走用得上的。密西根大學的經驗是，親自到場挑選時，省下的金額與減少的廢棄量都明顯比純線上高。</p>
+  </div>
+  <div class="event" id="swapEvent"></div>
+  <div class="two">
+    <div class="panel">
+      <div class="block-head"><h3>已預登記的物品</h3><span class="tiny" id="swapCount"></span></div>
+      <div id="swapList"></div>
+    </div>
+    <form class="panel" id="swapForm" novalidate>
+      <h3>預登記要帶來的物品</h3>
+      <p class="tiny">先登記，現場可以直接貼上共享圈標籤；沒被領走的物品可帶回，或轉到線上平台繼續媒合。</p>
+      <div class="field"><label for="sw-name">物品</label><input id="sw-name" placeholder="例如：未拆封培養皿 90 mm"></div>
+      <div class="row">
+        <div class="field"><label for="sw-qty">數量</label><input id="sw-qty" placeholder="例如：3 包"></div>
+        <div class="field"><label for="sw-lab">所屬單位</label><select id="sw-lab"></select></div>
+      </div>
+      <div class="btnrow"><button class="btn primary" type="submit">預登記</button><span class="form-err" id="swErr" role="alert"></span></div>
+    </form>
+  </div>
+  <div class="panel">
+    <h3>現場流程</h3>
+    <ol class="flow4">
+      <li><strong>報到</strong><p>出示單位，領取當日編號。</p></li>
+      <li><strong>貼標籤</strong><p>帶來的物品貼上共享圈 QR 標籤，掃碼即上架。</p></li>
+      <li><strong>挑選登記</strong><p>看中的物品掃碼登記領取，自動記入流通紀錄。</p></li>
+      <li><strong>收尾</strong><p>沒被領走的帶回，或轉到線上平台繼續媒合。</p></li>
+    </ol>
+  </div>
+</section>
+
+<!-- IMPACT -->
+<section class="page" id="pg-impact" hidden>
+  <div class="page-head">
+    <h2>共享成果</h2>
+    <p class="lede">成效只計確實發生的改變：上架不等於再利用，領取不等於使用，新品價格也不等於省下的錢。</p>
+  </div>
+  <div class="tiles" id="tiles"></div>
+  <div class="two even">
+    <div class="panel"><h3>從上架到真正使用</h3><div class="funnel" id="funnel"></div><p class="tiny">示範數據，非實測。</p></div>
+    <div class="panel"><h3>研究室貢獻榜</h3><div class="board" id="impactBoard"></div><p class="tiny">僅供鼓勵，不與任何考核連動。</p></div>
+  </div>
+  <div class="block">
+    <h2>流通紀錄</h2>
+    <div class="table-wrap">
+      <table class="log-table">
+        <thead><tr><th>日期</th><th>物資</th><th>流向</th><th>方式</th><th>使用回報</th><th style="text-align:right">確認避免採購</th><th style="text-align:right">管理工時</th></tr></thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="two">
+    <div class="panel">
+      <div class="block-head"><h3>月報</h3><button class="btn small" type="button" data-act="copyReport">複製月報</button></div>
+      <label class="sr-only" for="reportText">月報內容</label>
+      <textarea id="reportText" class="report" readonly></textarea>
+      <div class="btnrow"><button class="btn small" type="button" data-act="reportAi">用本機 AI 改寫成段落</button><span class="tiny" id="reportAiStatus" aria-live="polite"></span></div>
+      <div class="field" id="reportAiWrap" hidden><label for="reportAiText">AI 草稿（請確認數字後再使用）</label><textarea id="reportAiText" rows="6"></textarea><div class="btnrow"><button class="btn small" type="button" data-act="copyReportAi">複製段落</button></div></div>
+      <p class="tiny">可直接貼進 ESG 推動小組的月報或提案附件。</p>
+    </div>
+    <div class="panel">
+      <h3>指標怎麼算</h3>
+      <ul class="defs">
+        <li><b>確認避免採購</b>：使用者回報「原本確定要買，因此取消或減量」才計入，以原定採購金額為準。</li>
+        <li><b>免於丟棄</b>：轉讓且已投入使用的物品重量；借用不計。</li>
+        <li><b>管理工時</b>：保管人與窗口處理每一件的時間，用來估算長期維運成本。</li>
+        <li><b>請購前查詢</b>：送出查詢的次數，以及其中找到可能可用物資的次數。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="page" id="pg-about" hidden>
+  <div class="page-head">
+    <h2>關於國衛共享圈</h2>
+    <p class="lede">2026 Green November 永續創新提案。目標是讓「先在院內找，再決定要不要買」成為研究室的日常習慣，並用可核對的數據證明它有效。</p>
+  </div>
+  <div class="block">
+    <h3>想解決的三個問題</h3>
+    <div class="pains">
+      <div><strong>重複採購</strong><p>同樣的耗材，隔壁研究室可能剛好用不完，但彼此不知道。</p></div>
+      <div><strong>近效期報廢</strong><p>未拆封的耗材放到過期，只能整盒丟掉。</p></div>
+      <div><strong>不知道找誰</strong><p>想借一個小工具或問一個技術問題，往往只能靠人脈。</p></div>
+    </div>
+  </div>
+  <div class="block">
+    <h3>治理原則</h3>
+    <div class="table-wrap">
+      <table class="gov">
+        <thead><tr><th>類型</th><th>處理方式</th><th>由誰確認</th></tr></thead>
+        <tbody>
+          <tr><td>一般研究物資（未拆封耗材、零件、小工具）</td><td>保管人確認後上架，可轉讓或出借</td><td>該單位保管人</td></tr>
+          <tr><td>院內財產（貼有財產標籤）</td><td>比照現行調撥程序，核可後才能轉讓</td><td>財產管理窗口</td></tr>
+          <tr><td>檢體、生物材料、危險化學品、權屬不明物品</td><td>第一階段不收</td><td>不適用</td></tr>
+          <tr><td>同仁私人物品</td><td>不在本平台範圍</td><td>不適用</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="block">
+    <div class="block-head"><h3>發展藍圖</h3><span class="tiny">提案規劃，依試行成效調整。</span></div>
+    <ol class="roadmap">
+      <li><span class="phase">第一階段｜2026 年 11 月</span><strong>小規模試行</strong><ul><li>2～3 間研究室盤點並上架</li><li>11/18 實體交換日</li><li>建立流通與使用的基線數據</li></ul></li>
+      <li><span class="phase">第二階段｜2027 年上半年</span><strong>全院擴大</strong><ul><li>開放全院上架與徵求</li><li>請購單增列「已查詢共享圈」欄位</li><li>保管人與窗口教育訓練</li></ul></li>
+      <li><span class="phase">第三階段｜2027 年下半年起</span><strong>延伸服務常態化</strong><ul><li>修好再用、技能互助定期開放</li><li>評估與院內既有系統整合</li><li>以成效數據決定是否擴大</li></ul></li>
+    </ol>
+  </div>
+  <div class="block">
+    <h3>常見問題</h3>
+    <div class="faq">
+      <details><summary>會不會增加保管人的負擔？</summary><p>物品留在原單位，媒合成功才交付，不需要集中倉庫。每件的管理工時都會記錄，作為是否擴大的依據。</p></details>
+      <details><summary>物品交付後出問題怎麼辦？</summary><p>上架時須註明狀態（全新未拆、良好、堪用），交付時雙方確認。共享圈不保證物品效能，用於研究前請自行確認規格。</p></details>
+      <details><summary>需要付費嗎？</summary><p>院內轉讓與借用都不收費。</p></details>
+      <details><summary>跟現行財產調撥有什麼不同？</summary><p>財產品項仍走現行程序。共享圈補上的是非財產的耗材與小工具、跨研究室的需求媒合，以及「先找再買」的查詢紀錄。</p></details>
+      <details><summary>會蒐集哪些資料？</summary><p>只記錄物品、所屬單位與流通紀錄；個人資料以聯絡所需為限。</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- ME -->
+<section class="page" id="pg-me" hidden>
+  <div class="page-head"><h2>我的共享</h2><p class="lede">以「你的研究室（示範）」的身分檢視。</p></div>
+  <div class="two">
+    <div class="stack" id="meMain"></div>
+    <div class="panel" id="mePoints"></div>
+  </div>
+</section>
+
+<!-- ADMIN -->
+<section class="page" id="pg-admin" hidden>
+  <div class="page-head"><h2>管理端</h2><p class="lede">保管人、財產管理窗口與維修團隊的待辦事項。示範中所有管理角色共用這一頁。</p></div>
+  <div class="two even" id="adminBody"></div>
+</section>
+
+</main>
+
+<footer class="wrap"><div class="foot">
+  <div><strong>收件範圍（第一階段）</strong>未拆封且保存條件明確的實驗耗材、醫工零件、小型工具、辦公與展示用品、包材。</div>
+  <div><strong>治理原則</strong>公務財產由保管人與財產管理窗口確認；每次轉讓、借用、歸還都留下紀錄。私人物品不在本平台範圍。</div>
+  <div><strong>國衛共享圈</strong>國家衛生研究院 2026 Green November 永續創新提案雛形，含瀏覽器內本機 AI。參考東京大學 ShareWel、MIT Rheaply、密西根大學 Lab Swap Shop 的做法。</div>
+</div></footer>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle" tabindex="-1" id="modal">
+    <button class="x" type="button" data-act="close" aria-label="關閉">×</button>
+    <div id="mBody"></div>
+  </div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+const TODAY = '2026-10-26';
+const ME = '你的研究室（示範）';
+const LABS = ['示範研究室 A（醫奈所）','示範研究室 B','示範研究室 C','示範研究室 D','示範行政組'];
+const CATS = {
+  consumable:{label:'實驗耗材', code:'CON'},
+  part:{label:'醫工零件', code:'PRT'},
+  tool:{label:'小型工具', code:'TOL'},
+  office:{label:'辦公與展示', code:'OFC'},
+  pack:{label:'包材', code:'PKG'}
+};
+const SYN = [
+  {key:'tip', terms:['吸管尖','微量吸頭','吸頭','tips','tip']},
+  {key:'tube', terms:['離心管','centrifuge','falcon','conical']},
+  {key:'pbs', terms:['緩衝液','pbs','buffer','磷酸鹽']},
+  {key:'swab', terms:['酒精棉片','酒精棉','alcohol pad','prep pad']},
+  {key:'glove', terms:['手套','glove','nitrile','丁腈']},
+  {key:'pipet', terms:['滴管','dropper','transfer pipette','巴斯德']},
+  {key:'extrusion', terms:['鋁擠型','鋁型材','鋁擠','鋁條','extrusion','2020']},
+  {key:'mount', terms:['固定座','夾具','mount','探頭座']},
+  {key:'mcu', terms:['開發板','arduino','單晶片','微控制器','mcu']},
+  {key:'bnc', terms:['同軸線','bnc','coaxial']},
+  {key:'shrink', terms:['熱縮套管','熱縮','heat shrink']},
+  {key:'tripod', terms:['三腳架','腳架','tripod','攝影支架']},
+  {key:'scope', terms:['示波器','oscilloscope']},
+  {key:'solder', terms:['烙鐵','焊台','焊接','soldering']},
+  {key:'caliper', terms:['游標卡尺','卡尺','caliper']},
+  {key:'poster', terms:['海報架','展示架','poster']},
+  {key:'chair', terms:['辦公椅','椅子','人體工學椅','chair']},
+  {key:'box', terms:['保麗龍箱','保冷箱','冰盒','styrofoam','保麗龍']}
+];
+const SYN_PRIMARY = Object.fromEntries(SYN.map(g => [g.key, g.terms[0]]));
+const SKILL_TAGS = ['影像處理','DICOM','Python','Arduino','電路除錯','感測器','統計分析','R','3D 建模','3D 列印','機構設計','採購流程','財產調撥'];
+
+const DEMO = {
+  items:[
+    {id:'NS-0101', name:'200 µL 微量吸管尖（盒裝 96 支）', cat:'consumable', mode:'transfer', qty:12, unit:'盒', cond:'全新未拆', expiry:'2027-03-31', lab:LABS[0], loc:'示範大樓 3F', groups:['tip'], status:'available', unitKg:0.12, listed:'2026-10-02'},
+    {id:'NS-0102', name:'15 mL 離心管（50 支／包）', cat:'consumable', mode:'transfer', qty:8, unit:'包', cond:'全新未拆', expiry:'2028-01-31', lab:LABS[1], loc:'示範大樓 5F', groups:['tube'], status:'available', unitKg:0.3, listed:'2026-10-10'},
+    {id:'NS-0103', name:'PBS 磷酸鹽緩衝液 500 mL（未開封）', cat:'consumable', mode:'transfer', qty:4, unit:'瓶', cond:'全新未拆', expiry:'2026-12-15', lab:LABS[2], loc:'示範大樓 4F', groups:['pbs'], status:'available', unitKg:0.55, listed:'2026-10-18'},
+    {id:'NS-0104', name:'酒精棉片（100 片／盒）', cat:'consumable', mode:'transfer', qty:6, unit:'盒', cond:'全新未拆', expiry:'2026-11-30', lab:LABS[3], loc:'示範大樓 2F', groups:['swab'], status:'available', unitKg:0.15, listed:'2026-10-22'},
+    {id:'NS-0105', name:'無粉丁腈手套 M 號（100 入）', cat:'consumable', mode:'transfer', qty:5, unit:'盒', cond:'全新未拆', expiry:'2026-12-20', lab:LABS[2], loc:'示範大樓 4F', groups:['glove'], status:'available', unitKg:0.4, listed:'2026-10-24'},
+    {id:'NS-0106', name:'3 mL 拋棄式滴管（未拆，500 支）', cat:'consumable', mode:'transfer', qty:1, unit:'包', cond:'全新未拆', expiry:'2026-12-05', lab:LABS[1], loc:'示範大樓 5F', groups:['pipet'], status:'available', unitKg:0.6, listed:'2026-10-25'},
+    {id:'NS-0201', name:'2020 鋁擠型 40 cm', cat:'part', mode:'transfer', qty:10, unit:'支', cond:'良好', lab:LABS[0], loc:'示範大樓 3F', groups:['extrusion'], status:'available', unitKg:0.2, listed:'2026-10-08'},
+    {id:'NS-0202', name:'3D 列印探頭固定座（PLA，附設計檔）', cat:'part', mode:'transfer', qty:6, unit:'個', cond:'良好', lab:LABS[0], loc:'示範大樓 3F', groups:['mount'], status:'available', unitKg:0.03, listed:'2026-10-12'},
+    {id:'NS-0203', name:'Arduino Nano 相容開發板', cat:'part', mode:'transfer', qty:5, unit:'片', cond:'全新未拆', lab:LABS[3], loc:'示範大樓 2F', groups:['mcu'], status:'reserved', reqQty:2, reqBy:LABS[1], unitKg:0.01, listed:'2026-10-15'},
+    {id:'NS-0204', name:'BNC 同軸線 1 m', cat:'part', mode:'transfer', qty:8, unit:'條', cond:'良好', lab:LABS[1], loc:'示範大樓 5F', groups:['bnc'], status:'available', unitKg:0.06, listed:'2026-09-15'},
+    {id:'NS-0205', name:'熱縮套管組（多尺寸）', cat:'part', mode:'transfer', qty:3, unit:'盒', cond:'良好', lab:ME, loc:'示範大樓 3F', groups:['shrink'], status:'available', unitKg:0.1, listed:'2026-10-20'},
+    {id:'NS-0301', name:'攝影三腳架（含雲台）', cat:'tool', mode:'lend', qty:1, unit:'組', cond:'良好', lab:LABS[0], loc:'示範大樓 3F', groups:['tripod'], status:'available', listed:'2026-10-01'},
+    {id:'NS-0302', name:'手持式數位示波器 2CH', cat:'tool', mode:'lend', qty:1, unit:'台', cond:'良好', lab:LABS[3], loc:'示範大樓 2F', groups:['scope'], status:'available', asset:true, listed:'2026-10-03'},
+    {id:'NS-0303', name:'溫控烙鐵工作站', cat:'tool', mode:'lend', qty:1, unit:'台', cond:'良好', lab:LABS[0], loc:'示範大樓 3F', groups:['solder'], status:'available', listed:'2026-10-05'},
+    {id:'NS-0304', name:'數位游標卡尺 150 mm', cat:'tool', mode:'lend', qty:2, unit:'支', cond:'良好', lab:LABS[1], loc:'示範大樓 5F', groups:['caliper'], status:'available', listed:'2026-10-11'},
+    {id:'NS-0401', name:'A0 海報展示架', cat:'office', mode:'lend', qty:2, unit:'座', cond:'良好', lab:LABS[4], loc:'示範大樓 1F', groups:['poster'], status:'available', listed:'2026-10-06'},
+    {id:'NS-0402', name:'人體工學辦公椅', cat:'office', mode:'transfer', qty:2, unit:'張', cond:'堪用', lab:LABS[2], loc:'示範大樓 4F', groups:['chair'], status:'pending', asset:true, unitKg:9, listed:'2026-10-23'},
+    {id:'NS-0501', name:'保冷保麗龍箱（中，可重複使用）', cat:'pack', mode:'transfer', qty:10, unit:'個', cond:'良好', lab:LABS[1], loc:'示範大樓 5F', groups:['box'], status:'available', unitKg:0.3, listed:'2026-09-20'}
+  ],
+  requests:[
+    {id:'RQ-030', text:'需要 BNC 線 3 條，量測訊號用', qty:'3 條', needBy:'2026-11-05', lab:ME},
+    {id:'RQ-031', text:'1000 µL tips 約 5 盒，11 月中細胞實驗用', qty:'5 盒', needBy:'2026-11-14', lab:LABS[2]},
+    {id:'RQ-032', text:'找鋁型材 4 支，做穿戴感測器測試支架', qty:'4 支', needBy:'2026-11-07', lab:LABS[3]},
+    {id:'RQ-033', text:'借攝影腳架兩天，拍攝實驗操作教學影片', qty:'1 組', needBy:'2026-11-12', lab:LABS[1]},
+    {id:'RQ-034', text:'醫療級 USB 隔離器 1 個（訊號擷取用）', qty:'1 個', needBy:'2026-11-20', lab:LABS[0]}
+  ],
+  bookings:[
+    {itemId:'NS-0301', start:'2026-10-29', end:'2026-10-30', by:LABS[2], status:'已確認'},
+    {itemId:'NS-0302', start:'2026-11-03', end:'2026-11-05', by:LABS[0], status:'已確認'},
+    {itemId:'NS-0303', start:'2026-10-22', end:'2026-10-24', by:LABS[1], status:'借出中'},
+    {itemId:'NS-0304', start:'2026-11-02', end:'2026-11-02', by:LABS[2], status:'待確認'},
+    {itemId:'NS-0401', start:'2026-10-26', end:'2026-10-27', by:ME, status:'借出中'},
+    {itemId:'NS-0401', start:'2026-11-04', end:'2026-11-06', by:LABS[1], status:'已確認'}
+  ],
+  log:[
+    {date:'2026-10-05', name:'50 mL 離心管 2 包', from:LABS[1], to:LABS[2], type:'轉讓', used:true, avoided:1180, kg:0.6, days:2, hours:0.5},
+    {date:'2026-10-08', name:'2020 鋁擠型 6 支', from:LABS[0], to:LABS[3], type:'轉讓', used:true, avoided:540, kg:1.2, days:1, hours:0.4},
+    {date:'2026-10-12', name:'A0 海報展示架', from:LABS[4], to:LABS[1], type:'借用', used:true, avoided:null, kg:0, days:1, hours:0.3},
+    {date:'2026-10-15', name:'200 µL 微量吸管尖 4 盒', from:LABS[0], to:LABS[1], type:'轉讓', used:true, avoided:1600, kg:0.5, days:3, hours:0.6},
+    {date:'2026-10-19', name:'電動起子組', from:LABS[3], to:LABS[0], type:'借用', used:true, avoided:null, kg:0, days:1, hours:0.2},
+    {date:'2026-10-21', name:'辦公書架', from:LABS[2], to:LABS[4], type:'轉讓', used:false, avoided:null, kg:14, days:6, hours:1.5, note:'尺寸不合'},
+    {date:'2026-10-23', name:'保冷保麗龍箱 4 個', from:LABS[1], to:LABS[2], type:'轉讓', used:null, avoided:null, kg:1.2, days:2, hours:0.4},
+    {date:'2026-10-24', name:'3D 列印探頭固定座 2 個', from:LABS[0], to:ME, type:'轉讓', used:null, avoided:null, kg:0.06, days:1, hours:0.3}
+  ],
+  repairs:[
+    {id:'RP-011', name:'電動移液器電池無法充電', lab:LABS[2], issue:'放上充電座沒有反應', status:'nofix', fix:'原廠密封電池，建議洽原廠維修', hours:0.5, cost:0, verify:'', date:'2026-10-02'},
+    {id:'RP-012', name:'攝影燈調光旋鈕斷裂', lab:LABS[2], issue:'旋鈕斷裂，無法調整亮度', status:'done', fix:'量測軸徑後以 3D 列印製作替代旋鈕（圖庫 DS-02）', hours:1.5, cost:20, verify:'轉動 50 次無鬆脫', date:'2026-10-09'},
+    {id:'RP-013', name:'BNC 訊號線接頭鬆脫', lab:LABS[1], issue:'接頭鬆動，訊號時有時無', status:'done', fix:'重新壓接接頭並加熱縮套管', hours:0.8, cost:35, verify:'導通測試與示波器實測正常', date:'2026-10-14'},
+    {id:'RP-014', name:'展示用感測器外殼破裂', lab:LABS[4], issue:'外殼卡榫斷裂，蓋不起來', status:'doing', fix:'重新繪製外殼卡榫並列印', hours:1, cost:null, verify:'', date:'2026-10-20'},
+    {id:'RP-015', name:'桌上型小風扇不轉', lab:LABS[2], issue:'通電後完全不轉', status:'new', date:'2026-10-24'}
+  ],
+  designs:[
+    {id:'DS-01', name:'探頭固定座', ver:'v3', mat:'PLA', fit:'直徑 12 mm 探頭', verified:true, uses:9},
+    {id:'DS-02', name:'攝影燈調光旋鈕', ver:'v1', mat:'PETG', fit:'D 型軸 6 mm', verified:true, uses:2},
+    {id:'DS-03', name:'線材整理夾', ver:'v2', mat:'PLA', fit:'線徑 4–8 mm', verified:true, uses:14},
+    {id:'DS-04', name:'手機顯微攝影轉接座', ver:'v1', mat:'PLA', fit:'目鏡外徑 23–30 mm', verified:false, uses:3},
+    {id:'DS-05', name:'2020 鋁擠型角座', ver:'v2', mat:'PETG', fit:'2020 系列鋁擠型', verified:true, uses:11},
+    {id:'DS-06', name:'穿戴感測器束帶扣', ver:'v1', mat:'TPU', fit:'寬 20 mm 束帶', verified:false, uses:1}
+  ],
+  skills:[
+    {id:'SK-01', who:'示範研究室 A（醫奈所）研究助理', tags:['影像處理','Python','DICOM'], slots:3},
+    {id:'SK-02', who:'示範研究室 D 博士生', tags:['Arduino','電路除錯','感測器'], slots:2},
+    {id:'SK-03', who:'示範研究室 B 研究員', tags:['統計分析','R'], slots:1},
+    {id:'SK-04', who:'示範研究室 A（醫奈所）碩士生', tags:['3D 建模','3D 列印','機構設計'], slots:4},
+    {id:'SK-05', who:'示範行政組同仁', tags:['採購流程','財產調撥'], slots:2}
+  ],
+  helps:[
+    {id:'HP-07', text:'示波器量測一直有 60 Hz 雜訊，不知道怎麼排除', tags:['電路除錯'], lab:LABS[2]},
+    {id:'HP-08', text:'想把 MRI 影像轉成 NIfTI，方向一直錯', tags:['影像處理','DICOM'], lab:LABS[1]},
+    {id:'HP-09', text:'第一次辦財產調撥，不知道要準備哪些文件', tags:['財產調撥'], lab:LABS[3]}
+  ],
+  exps:[
+    {id:'EX-01', title:'示波器出現 60 Hz 雜訊', symptom:'波形疊加約 60 Hz 的正弦干擾', cause:'接地迴路，或探棒接地線過長', fix:'改用短接地彈簧、確認單點接地、讓訊號線遠離電源線', limit:'若干擾來自待測物本身，需另外排查', tags:['電路除錯']},
+    {id:'EX-02', title:'DICOM 轉 NIfTI 後方向顛倒', symptom:'左右或上下方向與檢視軟體不一致', cause:'不同轉檔工具處理方向矩陣的方式不同', fix:'轉檔後檢查方向矩陣，整個專案統一使用同一套工具', limit:'不同掃描序列需各自確認', tags:['影像處理','DICOM']},
+    {id:'EX-03', title:'Arduino 序列埠讀值是亂碼', symptom:'序列監看視窗顯示亂碼', cause:'程式與監看視窗的鮑率不一致', fix:'兩邊設定相同鮑率後重新開啟監看視窗', limit:'若鮑率一致仍亂碼，檢查接線與電源', tags:['Arduino']},
+    {id:'EX-04', title:'3D 列印件尺寸偏小、裝不進去', symptom:'孔位或卡榫比設計圖小約 0.2 mm', cause:'材料收縮與擠出寬度未補償', fix:'孔位預留 0.2–0.3 mm 公差，先印小樣測試', limit:'不同材料與機台需各自校正', tags:['3D 列印','機構設計']},
+    {id:'EX-05', title:'感測器數值一直跳動', symptom:'靜止狀態下讀值仍有明顯波動', cause:'取樣未濾波，或電源雜訊', fix:'加上移動平均或低通濾波，電源端加去耦電容', limit:'濾波會增加延遲，需依用途取捨', tags:['感測器','Arduino']},
+    {id:'EX-06', title:'財產調撥要準備什麼', symptom:'不清楚流程與需要的文件', cause:'第一次辦理', fix:'先與保管人確認，再洽財產管理窗口取得表單與流程說明', limit:'以院內現行規定為準', tags:['財產調撥']}
+  ],
+  swapItems:[
+    {name:'鋁擠型與壓克力餘料一批', qty:'1 箱', lab:LABS[0]},
+    {name:'未拆封培養皿 90 mm', qty:'3 包', lab:LABS[2]},
+    {name:'USB 延長線與轉接頭', qty:'12 條', lab:LABS[3]},
+    {name:'檔案夾與文具', qty:'1 箱', lab:LABS[4]},
+    {name:'小型收納盒', qty:'8 個', lab:LABS[1]}
+  ],
+  pts:[
+    {d:'2026-10-20', t:'上架「熱縮套管組」', p:1},
+    {d:'2026-10-16', t:'協助示範研究室 C 排除示波器雜訊', p:2},
+    {d:'2026-10-10', t:'回報「電動起子組」已投入使用', p:1}
+  ],
+  helpsDone:{'示範研究室 A（醫奈所）':3, '示範研究室 D':2, '示範研究室 B':1, '你的研究室（示範）':1}
+};
+
+const clone = o => JSON.parse(JSON.stringify(o));
+let S;
+function seed(){
+  const role = S ? S.role : 'staff';
+  S = Object.assign(clone(DEMO), {
+    q:'', cat:'all', mode:'all', soon:false, exQ:'', sq:41, nextId:901, nextReq:35, nextRp:16, nextHp:10, nextSk:6,
+    follows:[], rsvp:23, going:false, pushed:[], unread:true, role, page:'home', sub:'find',
+    queries:{n:12, found:7}, bulk:null
+  });
+}
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dayNum = iso => { const [y,m,d] = iso.split('-').map(Number); return Date.UTC(y,m-1,d)/86400000; };
+const addDays = (iso,n) => new Date((dayNum(iso)+n)*86400000).toISOString().slice(0,10);
+const md = iso => { const [,m,d] = iso.split('-'); return `${+m}/${+d}`; };
+const daysLeft = iso => dayNum(iso) - dayNum(TODAY);
+const WD = ['日','一','二','三','四','五','六'];
+const wd = iso => WD[new Date(dayNum(iso)*86400000).getUTCDay()];
+const ntd = n => 'NT$ ' + Math.round(n).toLocaleString('en-US');
+const pool = () => S.items.filter(i => i.status !== 'delivered' && i.status !== 'withdrawn');
+const itemById = id => S.items.find(i => i.id === id);
+const labOpts = (sel) => [ME, ...LABS].map(l => `<option${l === sel ? ' selected' : ''}>${esc(l)}</option>`).join('');
+
+function vol(s){
+  const m = String(s).match(/(\d+(?:\.\d+)?)\s*(µl|μl|ul|ml)/i);
+  if(!m) return null;
+  const v = parseFloat(m[1]);
+  return m[2].toLowerCase() === 'ml' ? v*1000 : v;
+}
+const fmtVol = v => v >= 1000 ? (v/1000) + ' mL' : v + ' µL';
+function hitGroups(text){
+  const t = text.toLowerCase(); const out = {};
+  SYN.forEach(g => { const h = g.terms.find(term => t.includes(term)); if(h) out[g.key] = h; });
+  return out;
+}
+function matchItems(text, list){
+  const q = text.trim(); if(!q) return [];
+  const hits = hitGroups(q);
+  const words = q.toLowerCase().split(/[\s，,、。（）()]+/).filter(w => w.length >= 2 && !/^[\d.]+$/.test(w) && !/^(µl|μl|ul|ml|cm|mm)$/.test(w));
+  const out = [];
+  list.forEach(it => {
+    const nameL = it.name.toLowerCase();
+    let reason = null;
+    const k = (it.groups || []).find(g => hits[g]);
+    if(k){
+      const h = hits[k];
+      reason = nameL.includes(h) ? '名稱相符' : `同義詞：「${h}」→「${SYN_PRIMARY[k]}」`;
+    } else if(words.some(w => nameL.includes(w))){
+      reason = '名稱相符';
+    }
+    if(!reason) return;
+    let warn = null;
+    const a = vol(q), b = vol(it.name);
+    if(a && b && a !== b) warn = `規格不同：需求 ${fmtVol(a)}，此物資 ${fmtVol(b)}，請與保管人確認是否適用`;
+    out.push({it, reason, warn});
+  });
+  return out;
+}
+
+/* bookings */
+const effEnd = b => (b.status === '借出中' && b.end < TODAY) ? TODAY : b.end;
+const isActive = b => b.status !== '已歸還';
+const isOverdue = b => b.status === '借出中' && b.end < TODAY;
+const bookingOn = (id, d) => S.bookings.find(b => isActive(b) && b.itemId === id && d >= b.start && d <= effEnd(b));
+
+/* metrics */
+function metrics(){
+  const L = S.log, done = L.length;
+  const used = L.filter(x => x.used === true).length;
+  const r = {
+    done, used,
+    lendN: L.filter(x => x.type === '借用').length,
+    pend: L.filter(x => x.used === null).length,
+    unused: L.filter(x => x.used === false).length,
+    avoided: L.reduce((s,x) => s + (x.used === true && x.avoided ? x.avoided : 0), 0),
+    kg: L.reduce((s,x) => s + (x.used === true && x.type === '轉讓' ? x.kg : 0), 0),
+    avgH: done ? L.reduce((s,x) => s + x.hours, 0) / done : 0,
+    avgD: done ? L.reduce((s,x) => s + x.days, 0) / done : 0
+  };
+  r.rpDone = S.repairs.filter(x => x.status === 'done').length;
+  r.rpHours = S.repairs.filter(x => x.date >= '2026-10-01').reduce((s,x) => s + (x.hours || 0), 0);
+  r.helps = Object.values(S.helpsDone).reduce((a,b) => a + b, 0);
+  return r;
+}
+function boardRows(){
+  const rows = [...LABS, ME].map(l => ({l, give:S.log.filter(x => x.from === l).length, help:S.helpsDone[l] || 0}))
+    .map(r => ({...r, s:r.give*2 + r.help*2})).filter(r => r.s > 0).sort((a,b) => b.s - a.s).slice(0,5);
+  const max = rows.length ? rows[0].s : 1;
+  return rows.map((r,i) => `<div class="b-row"><span class="b-rank">${i+1}</span><span>${esc(r.l)}</span><div class="b-bar"><div class="b-fill" style="width:${(r.s/max*100).toFixed(0)}%"></div></div><span class="b-meta">提供 ${r.give} 次｜協助 ${r.help} 次</span></div>`).join('') || '<p class="tiny">還沒有紀錄。</p>';
+}
+
+/* ---------- shared fragments ---------- */
+function chipsFor(it){
+  let c = it.mode === 'transfer' ? '<span class="chip transfer">可轉讓</span>' : '<span class="chip lend">可借用</span>';
+  if(it.expiry && it.mode === 'transfer'){ const d = daysLeft(it.expiry); if(d <= 60) c += `<span class="chip warn">近效期・剩 ${d} 天</span>`; }
+  if(it.status === 'reserved') c += '<span class="chip">已有人申請</span>';
+  if(it.status === 'pending') c += '<span class="chip pending">待財產窗口核可</span>';
+  if(it.mode === 'lend' && S.bookings.some(b => b.itemId === it.id && isOverdue(b))) c += '<span class="chip bad">逾期未還</span>';
+  if(it.isNew) c += '<span class="chip new">新上架</span>';
+  return c;
+}
+function cardHTML(it, m){
+  const cat = CATS[it.cat];
+  return `<article class="tagcard${it.status === 'reserved' ? ' dim' : ''}">
+    <span class="tag-hole" aria-hidden="true"></span>
+    <div class="tag-body">
+      <div class="tag-head"><span class="code">${cat.code}</span><span>${cat.label}</span></div>
+      <button class="card-link" type="button" data-item="${it.id}">${esc(it.name)}</button>
+      <div class="meta"><span>${it.qty} ${esc(it.unit)}</span><span>${esc(it.cond)}</span>${it.expiry && it.mode === 'transfer' ? `<span>效期 ${it.expiry}</span>` : ''}</div>
+      <div class="chips">${chipsFor(it)}${m ? `<span class="chip match${m.sem ? ' ai' : ''}">${esc(m.reason)}</span>` : ''}</div>
+      ${m && m.warn ? `<p class="warnline">${esc(m.warn)}</p>` : ''}
+    </div>
+    <div class="tag-stub"><span>${it.id}</span><span>${esc(it.lab)}</span></div>
+  </article>`;
+}
+function stripHTML(id){
+  let h = '';
+  for(let i = 0; i < 14; i++){
+    const d = addDays(TODAY, i);
+    const b = bookingOn(id, d);
+    const cls = b ? (b.status === '待確認' ? 'wait' : 'busy') : '';
+    const st = b ? (b.status === '待確認' ? '申請中' : '已借出') : '可借';
+    h += `<div class="day ${cls}" title="${md(d)}（${wd(d)}）${st}"><span class="wd">${wd(d)}</span><b>${+d.slice(8)}</b></div>`;
+  }
+  return `<div class="strip" role="img" aria-label="${md(TODAY)} 起 14 天借用狀態">${h}</div>`;
+}
+function eventHTML(full){
+  return `<div class="datebox"><b>11/18</b><span>星期三</span></div>
+    <div class="event-body"><h3>${full ? '2026 Green November 實體交換日' : '下一場：實體交換日'}</h3>
+      <p class="muted">10:00–12:00｜示範大樓 1F 大廳（示範地點）｜與永續講堂、無電梯日同一天</p>
+      <p class="tiny">已有 ${S.swapItems.length} 件物品預登記，${S.rsvp} 人報名。也歡迎 ESG 推動小組實地訪視。</p></div>
+    <div class="btnrow">${full
+      ? `<button class="btn ${S.going ? '' : 'primary'}" type="button" data-act="rsvp">${S.going ? '已報名，取消報名' : '我會到場'}</button>`
+      : `<button class="btn primary" type="button" data-go="swap">看交換日</button>`}</div>`;
+}
+
+/* ---------- page renderers ---------- */
+function renderHeader(){
+  document.querySelectorAll('.navlink').forEach(b => { if(b.dataset.go === S.page) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
+  $('#navAdmin').hidden = S.role !== 'admin';
+  const n = buildNotes().length;
+  const dot = $('#bellN');
+  dot.hidden = !(S.unread && n);
+  dot.textContent = n;
+  $('#bellBtn').setAttribute('aria-label', S.unread && n ? `通知，${n} 則` : '通知');
+}
+
+function renderHome(){
+  const m = metrics();
+  $('#heroStats').innerHTML = `<div class="hero-id" aria-hidden="true">NHRI・SHARE</div>
+    <div class="s"><dt>可媒合物資</dt><dd>${S.items.filter(i => i.status === 'available').length}<small>件</small></dd></div>
+    <div class="s"><dt>徵求中</dt><dd>${S.requests.length}<small>筆</small></dd></div>
+    <div class="s"><dt>已完成流通</dt><dd>${m.done}<small>件</small></dd></div>
+    <div class="s"><dt>確認避免採購</dt><dd><small>NT$</small>${Math.round(m.avoided).toLocaleString('en-US')}</dd></div>`;
+  const soon = pool().filter(i => i.expiry && i.mode === 'transfer' && daysLeft(i.expiry) <= 60).sort((a,b) => a.expiry < b.expiry ? -1 : 1).slice(0,4);
+  $('#homeSoon').innerHTML = soon.length ? soon.map(it => cardHTML(it)).join('') : '<div class="empty"><strong>目前沒有近效期物資</strong></div>';
+  const nw = pool().filter(i => i.status !== 'pending').sort((a,b) => (a.listed < b.listed ? 1 : -1)).filter(i => !(i.expiry && i.mode === 'transfer' && daysLeft(i.expiry) <= 60)).slice(0,4);
+  $('#homeNew').innerHTML = nw.map(it => cardHTML(it)).join('');
+  const svc = [
+    ['items','find','物資轉讓', `${S.items.filter(i => i.status === 'available' && i.mode === 'transfer').length} 件可轉讓`, '未拆封耗材、零件與辦公用品，免費轉給需要的研究室。'],
+    ['items','need','徵求牆', `${S.requests.length} 筆徵求`, '先說你需要什麼，有符合的物品上架就通知你。'],
+    ['borrow',null,'工具借用', `${pool().filter(i => i.mode === 'lend').length} 項可借`, '不常用的小工具，借兩天就還，不必每間都買。'],
+    ['repair',null,'修好再用', `已修好 ${m.rpDone} 件`, '壞了先別丟，醫工團隊幫你看看，修法留給下一個人。'],
+    ['skills',null,'技能互助', `${S.skills.length} 項專長`, '30 分鐘的專長協助，加上可搜尋的排錯經驗卡。'],
+    ['swap',null,'實體交換日', '11/18', '帶來用不到的，挑走用得上的，現場掃碼登記。']
+  ];
+  $('#svcGrid').innerHTML = svc.map(([p,s,t,n,d]) => `<button class="svc" type="button" data-go="${p}"${s ? ` data-sub="${s}"` : ''}><span class="svc-top"><span class="svc-title">${t}</span><span class="svc-n">${n}</span></span><p>${d}</p></button>`).join('');
+  $('#homeEvent').innerHTML = eventHTML(false);
+  $('#homeBoard').innerHTML = boardRows();
+}
+
+function renderCatSeg(){
+  const opts = [['all','全部'], ...Object.entries(CATS).map(([k,v]) => [k, v.label])];
+  $('#catSeg').innerHTML = opts.map(([k,l]) => `<button type="button" class="pill" data-cat="${k}" aria-pressed="${S.cat === k}">${l}</button>`).join('');
+  const fb = $('#followBtn');
+  fb.hidden = S.cat === 'all';
+  if(S.cat !== 'all'){
+    const on = S.follows.includes(S.cat);
+    fb.textContent = on ? `已關注「${CATS[S.cat].label}」` : `關注「${CATS[S.cat].label}」`;
+    fb.setAttribute('aria-pressed', on);
+  }
+}
+function renderFind(){
+  let list = pool(); let mm = null;
+  if(S.q){ mm = smartMatch(S.q, list); list = mm.map(x => x.it); }
+  if(S.cat !== 'all') list = list.filter(i => i.cat === S.cat);
+  if(S.mode !== 'all') list = list.filter(i => i.mode === S.mode);
+  if(S.soon) list = list.filter(i => i.expiry && i.mode === 'transfer' && daysLeft(i.expiry) <= 60);
+  const mOf = id => mm ? mm.find(x => x.it.id === id) : null;
+  const sum = $('#findSummary'), grid = $('#grid');
+  const aiPend = S.q && AI.state === 'ready' && !AI.sem.has(S.q);
+  sum.textContent = aiPend ? `本機 AI 比對中…（目前先顯示關鍵字結果）` : S.q && list.length ? `找到 ${list.length} 件可能符合「${S.q}」。系統只推薦候選，規格與相容性請與保管人確認。`
+    : S.q ? '' : `共 ${list.length} 件物資。`;
+  if(!list.length){
+    grid.innerHTML = S.q
+      ? `<div class="empty"><strong>院內目前沒有符合「${esc(S.q)}」的物資</strong>
+          <p class="muted">可以先發出徵求，有人上架時會通知你；或取得查詢紀錄編號，附在請購單上。</p>
+          <div class="btnrow"><button class="btn primary" type="button" data-act="toNeed">發出徵求</button><button class="btn" type="button" data-act="sqCode">取得查詢紀錄</button></div>
+          <div id="sqOut"></div></div>`
+      : `<div class="empty"><strong>沒有符合篩選條件的物資</strong><p class="muted">試著放寬類別或提供方式。</p></div>`;
+    return;
+  }
+  grid.innerHTML = list.map(it => cardHTML(it, mOf(it.id))).join('');
+}
+function renderNeed(){
+  const list = pool();
+  $('#nNeed').textContent = S.requests.length;
+  $('#reqList').innerHTML = S.requests.map(r => {
+    const mm = smartMatch(r.text, list);
+    return `<article class="req"><div class="req-head"><div><div class="req-text">${esc(r.text)}</div>
+        <div class="req-meta"><span class="code">${r.id}</span>　${esc(r.lab)}｜需要 ${esc(r.qty)}${r.needBy ? `｜${md(r.needBy)} 前` : ''}</div></div>
+        <span class="badge ${mm.length ? 'ok' : 'wait'}">${mm.length ? `${mm.length} 件候選` : '暫無符合'}</span></div>
+      ${mm.length ? mm.map(x => `<div class="cand"><div class="cand-main"><span class="cand-name">${esc(x.it.name)}</span>
+          <div class="chips"><span class="chip match${x.sem ? ' ai' : ''}">${esc(x.reason)}</span><span class="chip">${x.it.id}｜${esc(x.it.lab)}</span></div>
+          ${x.warn ? `<p class="warnline">${esc(x.warn)}</p>` : ''}</div>
+          <button class="btn small" type="button" data-item="${x.it.id}">查看</button></div>`).join('')
+        : '<p class="tiny">已設定上架通知：有符合的物資上架時，會通知徵求者。</p>'}</article>`;
+  }).join('');
+}
+function renderItemsSub(){
+  ['find','offer','need','bulk'].forEach(s => {
+    $('#st-' + s).setAttribute('aria-selected', S.sub === s);
+    $('#st-' + s).tabIndex = S.sub === s ? 0 : -1;
+    $('#sub-' + s).hidden = S.sub !== s;
+  });
+}
+
+function renderBorrow(){
+  const mine = S.bookings.filter(b => b.by === ME && isActive(b));
+  const my = $('#myLend');
+  my.hidden = !mine.length;
+  my.innerHTML = `<h3>我的借用</h3>` + mine.map(b => {
+    const it = itemById(b.itemId); const d = daysLeft(b.end);
+    const due = b.status === '借出中' ? (d < 0 ? `<span class="badge bad">逾期 ${-d} 天</span>` : d === 0 ? '<span class="badge wait">今天到期</span>' : d === 1 ? '<span class="badge wait">明天到期</span>' : `<span class="badge info">${md(b.end)} 歸還</span>`) : `<span class="badge ${b.status === '待確認' ? 'wait' : 'ok'}">${b.status}</span>`;
+    return `<div class="q-row"><div class="q-main"><b>${esc(it ? it.name : b.itemId)}</b><span class="tiny">${md(b.start)}–${md(b.end)}｜${esc(it ? it.lab : '')}</span></div>${due}${b.status === '借出中' ? `<button class="btn small" type="button" data-act="returnMine" data-item-id="${b.itemId}" data-start="${b.start}">我已歸還</button>` : ''}</div>`;
+  }).join('');
+  const list = pool().filter(i => i.mode === 'lend');
+  $('#lendList').innerHTML = list.map(it => `<article class="lend">
+      <div class="lend-info"><button class="card-link" type="button" data-item="${it.id}">${esc(it.name)}</button>
+        <span class="tiny"><span class="code">${it.id}</span>　${esc(it.lab)}｜${esc(it.loc)}</span>
+        <div class="chips">${S.bookings.some(b => b.itemId === it.id && isOverdue(b)) ? '<span class="chip bad">逾期未還</span>' : ''}${it.asset ? '<span class="chip">財產品項</span>' : ''}</div></div>
+      <div>${stripHTML(it.id)}<p class="tiny" style="margin-top:4px">${md(TODAY)}（${wd(TODAY)}）起 14 天</p></div>
+      <button class="btn small" type="button" data-act="openBorrow" data-id="${it.id}">預約借用</button>
+    </article>`).join('');
+}
+
+function renderRepair(){
+  const m = metrics(); const cap = 12;
+  $('#capBox').innerHTML = `<div class="cap-bar"><div class="cap-fill" style="width:${Math.min(100, m.rpHours/cap*100).toFixed(0)}%"></div></div>
+    <p class="tiny">已投入 ${m.rpHours.toFixed(1)}／${cap} 小時。設定每月上限，避免維修變成無限量的免費服務。</p>`;
+  const cols = [['new','待評估'],['doing','維修中'],['done','已修復'],['nofix','無法修復']];
+  const admin = S.role === 'admin';
+  $('#kanbanHint').textContent = admin ? '管理端可以接案、完成或婉拒。' : '切換右上角身分為「管理端」，可以操作看板。';
+  $('#kanban').innerHTML = cols.map(([k,l]) => {
+    const list = S.repairs.filter(x => x.status === k).sort((a,b) => a.date < b.date ? 1 : -1);
+    return `<div class="k-col"><div class="k-head"><span>${l}</span><span>${list.length}</span></div>
+      ${list.map(x => `<div class="k-card"><span class="tiny"><span class="code">${x.id}</span>　${md(x.date)}｜${esc(x.lab)}</span><b>${esc(x.name)}</b>
+        <span class="tiny">${esc(x.issue || '')}</span>
+        ${x.fix ? `<dl class="k-rec"><dt>修法</dt><dd>${esc(x.fix)}</dd>${x.hours != null ? `<dt>工時</dt><dd>${x.hours} 小時</dd>` : ''}${x.cost != null && k === 'done' ? `<dt>材料</dt><dd>${ntd(x.cost)}</dd>` : ''}${x.verify ? `<dt>驗證</dt><dd>${esc(x.verify)}</dd>` : ''}</dl>` : ''}
+        ${admin && k === 'new' ? `<div class="btnrow"><button class="btn small" type="button" data-act="rpAccept" data-id="${x.id}">接案</button><button class="btn small quiet" type="button" data-act="rpDecline" data-id="${x.id}">不受理</button></div>` : ''}
+        ${admin && k === 'doing' ? `<div class="btnrow"><button class="btn small" type="button" data-act="rpDone" data-id="${x.id}">完成維修</button></div>` : ''}
+      </div>`).join('') || '<p class="tiny" style="padding:4px">目前沒有</p>'}</div>`;
+  }).join('');
+  $('#designGrid').innerHTML = S.designs.map(d => `<article class="tagcard">
+      <span class="tag-hole" aria-hidden="true"></span>
+      <div class="tag-body">
+        <div class="tag-head"><span class="code">${d.id}</span><span>${d.ver}｜${d.mat}</span></div>
+        <h3>${esc(d.name)}</h3>
+        <div class="meta"><span>適用：${esc(d.fit)}</span><span>已使用 ${d.uses} 次</span></div>
+        <div class="chips">${d.verified ? '<span class="chip ok">已實測</span>' : '<span class="chip warn">僅外觀確認</span>'}</div>
+      </div>
+      <div class="tag-stub"><span>${d.id}</span><button class="link" type="button" data-act="printReq" data-id="${d.id}">申請列印</button></div>
+    </article>`).join('');
+}
+
+function renderSkills(){
+  $('#skillList').innerHTML = S.skills.map(s => `<article class="skill"><div class="skill-head"><div><b>${esc(s.who)}</b><div class="tiny"><span class="code">${s.id}</span>　本月可預約 ${s.slots} 次</div></div>
+      <button class="btn small" type="button" data-act="bookSkill" data-id="${s.id}" ${s.slots ? '' : 'disabled'}>${s.slots ? '預約 30 分鐘' : '本月已滿'}</button></div>
+      <div class="chips">${s.tags.map(t => `<span class="chip">${esc(t)}</span>`).join('')}</div></article>`).join('');
+  $('#helpList').innerHTML = S.helps.map(h => {
+    const sk = S.skills.filter(s => s.tags.some(t => h.tags.includes(t)));
+    const ex = S.exps.filter(e => e.tags.some(t => h.tags.includes(t)));
+    return `<article class="req"><div class="req-head"><div><div class="req-text">${esc(h.text)}</div><div class="req-meta"><span class="code">${h.id}</span>　${esc(h.lab)}</div></div>
+      <span class="badge ${sk.length ? 'ok' : 'wait'}">${sk.length ? `${sk.length} 位可協助` : '尋找中'}</span></div>
+      <div class="chips">${h.tags.map(t => `<span class="chip">${esc(t)}</span>`).join('')}</div>
+      ${sk.length ? `<p class="tiny">可以找：${sk.map(s => `${s.id}（${esc(s.who)}）`).join('、')}</p>` : ''}
+      <div class="btnrow"><button class="btn small" type="button" data-act="aiCard" data-id="${h.id}">整理成經驗卡</button></div>
+      ${ex.length ? `<p class="tiny">相關經驗卡：${ex.map(e => `<button class="link" type="button" data-act="showEx" data-id="${e.id}">${e.id} ${esc(e.title)}</button>`).join('、')}</p>` : ''}</article>`;
+  }).join('');
+  const q = S.exQ.toLowerCase();
+  const exs = S.exps.filter(e => !q || [e.title,e.symptom,e.cause,e.fix,...e.tags].join(' ').toLowerCase().includes(q));
+  $('#exGrid').innerHTML = exs.length ? exs.map(e => `<article class="ex" id="card-${e.id}"><div class="tag-head"><span class="code">${e.id}</span><span>${e.tags.map(esc).join('、')}</span></div><h3>${esc(e.title)}</h3>
+      <dl><dt>症狀</dt><dd>${esc(e.symptom)}</dd>${e.cause ? `<dt>可能原因</dt><dd>${esc(e.cause)}</dd>` : ''}<dt>解法</dt><dd>${esc(e.fix)}</dd>${e.limit ? `<dt>適用限制</dt><dd>${esc(e.limit)}</dd>` : ''}</dl></article>`).join('')
+    : `<div class="empty"><strong>沒有符合「${esc(S.exQ)}」的經驗卡</strong><p class="muted">可以到「我卡關了」發出求助，解決後留下一張卡。</p></div>`;
+}
+
+function renderSwap(){
+  $('#swapEvent').innerHTML = eventHTML(true);
+  $('#swapCount').textContent = `${S.swapItems.length} 件`;
+  $('#swapList').innerHTML = S.swapItems.map(x => `<div class="q-row"><div class="q-main"><b>${esc(x.name)}</b><span class="tiny">${esc(x.lab)}</span></div><span class="tiny">${esc(x.qty)}</span></div>`).join('');
+}
+
+function renderImpact(){
+  const m = metrics();
+  const tiles = [
+    {t:'完成流通', b:m.done, u:'件', p:`其中借用 ${m.lendN} 次；只上架沒人要的不算`},
+    {t:'確認投入使用', b:m.used, u:`／${m.done} 件`, p:`${m.pend} 件待回報；領取不等於使用`},
+    {t:'確認避免採購', b:ntd(m.avoided), u:'', p:`另有 ${m.kg.toFixed(1)} kg 物資免於丟棄`},
+    {t:'維運成本', b:m.avgH.toFixed(1), u:'小時／件', p:`平均 ${m.avgD.toFixed(1)} 天完成媒合`}
+  ];
+  $('#tiles').innerHTML = tiles.map(x => `<div class="tile"><span class="tier">${x.t}</span><span class="big">${x.b}${x.u ? `<small>${x.u}</small>` : ''}</span><p>${x.p}</p></div>`).join('');
+  const listed = pool().length + m.done;
+  const matched = m.done + S.items.filter(i => i.status === 'reserved').length;
+  $('#funnel').innerHTML = [['上架', listed],['成功媒合', matched],['完成交付', m.done],['確認使用', m.used]]
+    .map(([l,v]) => `<div class="f-row"><span>${l}</span><div class="f-bar"><div class="f-fill" style="width:${listed ? (v/listed*100).toFixed(1) : 0}%"></div></div><span class="f-num">${v}</span></div>`).join('');
+  $('#impactBoard').innerHTML = boardRows();
+  let html = '';
+  for(let i = S.log.length - 1; i >= 0; i--){
+    const x = S.log[i];
+    const usedCell = x.used === true ? '<span class="badge ok">已投入使用</span>'
+      : x.used === false ? `<span class="badge bad">未使用</span>${x.note ? `<div class="tiny">${esc(x.note)}</div>` : ''}`
+      : `<button class="btn small" type="button" data-act="report" data-idx="${i}">回報使用</button>`;
+    const avCell = x.used === null ? '<span class="tiny">待回報</span>' : x.used === false ? '<span class="tiny">不計</span>' : x.avoided ? ntd(x.avoided) : '<span class="tiny">無原定採購</span>';
+    html += `<tr><td class="date">${md(x.date)}</td><td>${esc(x.name)}</td><td class="flow">${esc(x.from)} → ${esc(x.to)}</td><td>${x.type}</td><td>${usedCell}</td><td class="num">${avCell}</td><td class="num">${x.hours.toFixed(1)} h</td></tr>`;
+  }
+  $('#logBody').innerHTML = html;
+  $('#reportText').value = [
+    '國衛共享圈 2026 年 10 月成效摘要（示範數據）',
+    '',
+    `一、完成流通：${m.done} 件（轉讓 ${m.done - m.lendN}、借用 ${m.lendN}）`,
+    `二、確認投入使用：${m.used} 件；待回報 ${m.pend} 件；回報未使用 ${m.unused} 件`,
+    `三、確認避免採購：${ntd(m.avoided)}；免於丟棄 ${m.kg.toFixed(1)} kg`,
+    `四、維運成本：平均每件 ${m.avgH.toFixed(1)} 小時，平均 ${m.avgD.toFixed(1)} 天完成媒合`,
+    `五、請購前查詢：${S.queries.n} 次，其中 ${S.queries.found} 次找到可能可用的物資`,
+    `六、修好再用：完成修復 ${m.rpDone} 件，本月維修工時 ${m.rpHours.toFixed(1)} 小時`,
+    `七、技能互助：登錄專長 ${S.skills.length} 項，累計協助 ${m.helps} 次`,
+    `八、交換日預登記：${S.swapItems.length} 件，報名 ${S.rsvp} 人`,
+    '',
+    '註：避免採購金額只計使用者回報「原本確定要買」的品項。'
+  ].join('\n');
+}
+
+function renderMe(){
+  const myItems = pool().filter(i => i.lab === ME);
+  const myReq = S.items.filter(i => i.status === 'reserved' && i.reqBy === ME);
+  const myNeeds = S.requests.filter(r => r.lab === ME);
+  const myReports = S.log.map((x,i) => ({x,i})).filter(o => o.x.to === ME && o.x.used === null);
+  const myLend = S.bookings.filter(b => b.by === ME && isActive(b));
+  const sec = (title, body, empty) => `<div class="panel"><h3>${title}</h3>${body || `<p class="tiny">${empty}</p>`}</div>`;
+  $('#meMain').innerHTML =
+    sec('待我回報', myReports.map(o => `<div class="q-row"><div class="q-main"><b>${esc(o.x.name)}</b><span class="tiny">${md(o.x.date)} 由 ${esc(o.x.from)} 交付</span></div><button class="btn small primary" type="button" data-act="report" data-idx="${o.i}">回報使用</button></div>`).join(''), '沒有待回報的項目。') +
+    sec('我的借用', myLend.map(b => { const it = itemById(b.itemId); return `<div class="q-row"><div class="q-main"><b>${esc(it ? it.name : b.itemId)}</b><span class="tiny">${md(b.start)}–${md(b.end)}｜${b.status}</span></div>${b.status === '借出中' ? `<button class="btn small" type="button" data-act="returnMine" data-item-id="${b.itemId}" data-start="${b.start}">我已歸還</button>` : ''}</div>`; }).join(''), '目前沒有借用。') +
+    sec('我的徵求', myNeeds.map(r => { const n = smartMatch(r.text, pool()).length; return `<div class="q-row"><div class="q-main"><b>${esc(r.text)}</b><span class="tiny">${r.id}｜需要 ${esc(r.qty)}</span></div><span class="badge ${n ? 'ok' : 'wait'}">${n ? `${n} 件候選` : '暫無符合'}</span><button class="btn small" type="button" data-go="items" data-sub="need">查看</button></div>`; }).join(''), '還沒有發出徵求。') +
+    sec('我的申請', myReq.map(i => `<div class="q-row"><div class="q-main"><b>${esc(i.name)}</b><span class="tiny">${i.id}｜申請 ${i.reqQty} ${esc(i.unit)}｜等待保管人交付</span></div><button class="btn small" type="button" data-item="${i.id}">查看</button></div>`).join(''), '目前沒有進行中的申請。') +
+    sec('我上架的物資', myItems.map(i => `<div class="q-row"><div class="q-main"><b>${esc(i.name)}</b><span class="tiny">${i.id}｜${i.qty} ${esc(i.unit)}｜上架 ${md(i.listed)}</span></div><div class="chips">${chipsFor(i)}</div></div>`).join(''), '還沒有上架物資。');
+  const total = S.pts.reduce((s,x) => s + x.p, 0);
+  $('#mePoints').innerHTML = `<h3>綠點</h3><div class="points"><b>${total}</b><span class="muted">點</span></div>
+    <p class="tiny">上架、回報、預登記交換日、協助他人都會累積。提案建議：累積 3 點可計入 Green Life 6+「資源循環」項目（需院方同意）。</p>
+    <div>${S.pts.map(x => `<div class="q-row"><div class="q-main"><span>${esc(x.t)}</span><span class="tiny">${md(x.d)}</span></div><span class="code">+${x.p}</span></div>`).join('')}</div>`;
+}
+
+function renderAdmin(){
+  const pending = S.items.filter(i => i.status === 'pending');
+  const reserved = S.items.filter(i => i.status === 'reserved');
+  const bkWait = S.bookings.filter(b => b.status === '待確認');
+  const overdue = S.bookings.filter(isOverdue);
+  const stale = pool().filter(i => i.status === 'available' && i.mode === 'transfer' && daysLeft(i.listed) <= -30);
+  const rpNew = S.repairs.filter(x => x.status === 'new');
+  const box = (title, n, body, empty) => `<div class="panel"><div class="block-head"><h3>${title}</h3><span class="badge ${n ? 'wait' : 'ok'}">${n ? `${n} 件` : '已清空'}</span></div>${body || `<p class="tiny">${empty}</p>`}</div>`;
+  const bkName = b => { const it = itemById(b.itemId); return it ? it.name : b.itemId; };
+  $('#adminBody').innerHTML =
+    box('財產品項待核可', pending.length, pending.map(i => `<div class="q-row"><div class="q-main"><b>${esc(i.name)}</b><span class="tiny">${i.id}｜${esc(i.lab)}｜${i.qty} ${esc(i.unit)}</span></div><div class="btnrow"><button class="btn small primary" type="button" data-act="approve" data-id="${i.id}">核可</button><button class="btn small quiet" type="button" data-act="withdraw" data-id="${i.id}">退回</button></div></div>`).join(''), '沒有待核可的財產品項。') +
+    box('待交付', reserved.length, reserved.map(i => `<div class="q-row"><div class="q-main"><b>${esc(i.name)}</b><span class="tiny">${i.id}｜${esc(i.reqBy || ME)} 申請 ${i.reqQty || 1} ${esc(i.unit)}</span></div><button class="btn small primary" type="button" data-act="deliver" data-id="${i.id}">標記已交付</button></div>`).join(''), '沒有待交付的物資。') +
+    box('借用申請待確認', bkWait.length, bkWait.map(b => `<div class="q-row"><div class="q-main"><b>${esc(bkName(b))}</b><span class="tiny">${esc(b.by)}｜${md(b.start)}–${md(b.end)}</span></div><div class="btnrow"><button class="btn small primary" type="button" data-act="bkOk" data-item-id="${b.itemId}" data-start="${b.start}">同意</button><button class="btn small quiet" type="button" data-act="bkNo" data-item-id="${b.itemId}" data-start="${b.start}">婉拒</button></div></div>`).join(''), '沒有待確認的借用。') +
+    box('借用逾期未還', overdue.length, overdue.map(b => `<div class="q-row"><div class="q-main"><b>${esc(bkName(b))}</b><span class="tiny">${esc(b.by)}｜應於 ${md(b.end)} 歸還，已逾期 ${-daysLeft(b.end)} 天</span></div><div class="btnrow"><button class="btn small" type="button" data-act="nudge" data-text="已提醒 ${esc(b.by)} 歸還">發送提醒</button><button class="btn small primary" type="button" data-act="bkReturn" data-item-id="${b.itemId}" data-start="${b.start}">標記已歸還</button></div></div>`).join(''), '沒有逾期的借用。') +
+    box('超過 30 天未媒合', stale.length, stale.map(i => `<div class="q-row"><div class="q-main"><b>${esc(i.name)}</b><span class="tiny">${i.id}｜${esc(i.lab)}｜上架 ${-daysLeft(i.listed)} 天</span></div><div class="btnrow"><button class="btn small" type="button" data-act="nudge" data-text="已提醒 ${esc(i.lab)} 保管人重新確認">提醒保管人</button><button class="btn small quiet" type="button" data-act="withdraw" data-id="${i.id}">下架</button></div></div>`).join(''), '沒有久未媒合的物資。') +
+    box('送修待評估', rpNew.length, rpNew.map(x => `<div class="q-row"><div class="q-main"><b>${esc(x.name)}</b><span class="tiny">${x.id}｜${esc(x.lab)}｜${esc(x.issue)}</span></div><div class="btnrow"><button class="btn small primary" type="button" data-act="rpAccept" data-id="${x.id}">接案</button><button class="btn small quiet" type="button" data-act="rpDecline" data-id="${x.id}">不受理</button></div></div>`).join(''), '沒有待評估的送修。');
+}
+
+function buildNotes(){
+  const n = [...S.pushed];
+  S.requests.filter(r => r.lab === ME).forEach(r => { const k = smartMatch(r.text, pool()).length; if(k) n.push({t:`你的徵求「${r.text}」有 ${k} 件可能符合`, s:'徵求', go:'items', sub:'need'}); });
+  S.bookings.filter(b => b.by === ME && b.status === '借出中').forEach(b => {
+    const it = itemById(b.itemId); const d = daysLeft(b.end); const nm = it ? it.name : b.itemId;
+    n.push({t: d < 0 ? `「${nm}」已逾期 ${-d} 天，請盡快歸還` : d === 0 ? `「${nm}」今天到期歸還` : `「${nm}」${d === 1 ? '明天' : md(b.end)}到期歸還`, s:'借用', go:'borrow'});
+  });
+  S.log.filter(x => x.to === ME && x.used === null).forEach(x => n.push({t:`請回報「${x.name}」是否已投入使用`, s:'回報', go:'me'}));
+  const soon = pool().filter(i => i.expiry && i.mode === 'transfer' && daysLeft(i.expiry) <= 60).length;
+  if(soon) n.push({t:`${soon} 件近效期物資，歡迎優先領取`, s:'效期', go:'home'});
+  n.push({t:`11/18 實體交換日：已有 ${S.swapItems.length} 件預登記、${S.rsvp} 人報名`, s:'活動', go:'swap'});
+  return n;
+}
+function renderNotes(){
+  const n = buildNotes();
+  $('#notes').innerHTML = `<h3>通知</h3>` + n.map((x,i) => `<button class="note" type="button" data-note="${i}"><span>${esc(x.t)}</span><small>${x.s}</small></button>`).join('');
+}
+
+function renderAll(){
+  renderHeader(); renderHome(); renderCatSeg(); renderFind(); renderNeed(); renderItemsSub();
+  renderBulk(); renderBorrow(); renderRepair(); renderSkills(); renderSwap(); renderImpact(); renderMe(); renderAdmin();
+  if(!$('#notes').hidden) renderNotes();
+}
+
+/* ---------- navigation ---------- */
+const PAGES = ['home','items','borrow','repair','skills','swap','impact','about','me','admin'];
+function go(page, sub){
+  if(page === 'admin' && S.role !== 'admin') page = 'home';
+  S.page = page; if(sub) S.sub = sub;
+  PAGES.forEach(p => { $('#pg-' + p).hidden = p !== page; });
+  closeNotes(); renderHeader(); renderItemsSub();
+  window.scrollTo({top:0});
+}
+function closeNotes(){ $('#notes').hidden = true; $('#bellBtn').setAttribute('aria-expanded','false'); }
+function push(t, s, goTo, sub){ S.pushed.unshift({t, s, go:goTo, sub}); S.unread = true; }
+function points(t, p){ S.pts.unshift({d:TODAY, t, p}); }
+
+/* ---------- modal + toast ---------- */
+let lastFocus = null;
+function openModal(html){
+  $('#mBody').innerHTML = html;
+  lastFocus = document.activeElement;
+  $('#overlay').hidden = false;
+  $('#modal').focus();
+}
+function closeModal(){
+  $('#overlay').hidden = true;
+  if(lastFocus && document.contains(lastFocus)) lastFocus.focus();
+}
+let toastTimer;
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3600);
+}
+
+function openItem(id){
+  const it = itemById(id); if(!it) return;
+  const admin = S.role === 'admin';
+  const idx = it.status === 'pending' ? 0 : it.status === 'available' ? 1 : it.status === 'reserved' ? 2 : 3;
+  const steps = ['上架確認','媒合','交付','使用回報'].map((s,i) => `<li class="${i < idx ? 'done' : i === idx ? 'now' : ''}">${s}</li>`).join('');
+  let action = '';
+  if(it.status === 'pending'){
+    action = admin ? `<div class="btnrow"><button class="btn primary" type="button" data-act="approve" data-id="${it.id}">核可上架</button><button class="btn quiet" type="button" data-act="withdraw" data-id="${it.id}">退回</button></div>`
+      : `<p class="tiny">這是院內財產，核可前只能瀏覽。切換右上角身分為「管理端」可以模擬核可。</p>`;
+  } else if(it.status === 'reserved'){
+    action = `<p class="tiny">${esc(it.reqBy || '一間研究室')}已申請 ${it.reqQty || 1} ${esc(it.unit)}，等待保管人交付。</p>` +
+      (admin ? `<div class="btnrow"><button class="btn primary" type="button" data-act="deliver" data-id="${it.id}">標記已交付</button></div>` : '<p class="tiny">切換身分為「管理端」可以模擬交付。</p>');
+  } else if(it.mode === 'lend'){
+    action = `${stripHTML(it.id)}<div class="btnrow"><button class="btn primary" type="button" data-act="openBorrow" data-id="${it.id}">預約借用</button></div>`;
+  } else if(it.lab === ME){
+    action = '<p class="tiny">這是你上架的物資，有人申請時會通知你。</p>';
+  } else {
+    action = `<form id="tfForm" data-id="${it.id}">
+      <div class="row">
+        <div class="field"><label for="tf-qty">申請數量（最多 ${it.qty}）</label><input id="tf-qty" type="number" min="1" max="${it.qty}" value="1" inputmode="numeric"></div>
+        <div class="field"><label for="tf-use">用途</label><select id="tf-use"><option>研究</option><option>教學</option><option>行政</option></select></div>
+      </div>
+      <div class="btnrow"><button class="btn primary" type="submit">送出轉讓申請</button><span class="form-err" id="tfErr" role="alert"></span></div>
+    </form>`;
+  }
+  openModal(`<div class="m-head"><span class="tiny"><span class="code">${it.id}</span>　${CATS[it.cat].label}</span>
+      <h3 id="mTitle">${esc(it.name)}</h3><div class="chips">${chipsFor(it)}</div></div>
+    <dl class="dl">
+      <dt>數量</dt><dd>${it.qty} ${esc(it.unit)}</dd>
+      <dt>狀態</dt><dd>${esc(it.cond)}</dd>
+      ${it.expiry && it.mode === 'transfer' ? `<dt>效期</dt><dd>${it.expiry}（剩 ${daysLeft(it.expiry)} 天）</dd>` : ''}
+      <dt>所屬單位</dt><dd>${esc(it.lab)}</dd>
+      <dt>存放位置</dt><dd>${esc(it.loc)}</dd>
+      <dt>上架日期</dt><dd>${it.listed}</dd>
+      <dt>財產</dt><dd>${it.asset ? '是，轉讓需財產管理窗口核可' : '否'}</dd>
+    </dl>
+    <ol class="stepper" aria-label="流程進度">${steps}</ol>
+    ${action}
+    <div class="field"><span class="legend">實體標籤</span>
+      <div class="label"><div class="qr" id="qrBox" aria-hidden="true"></div><div class="label-txt"><b>國衛共享圈</b><span class="lid">${it.id}</span><span>${esc(it.name)}</span><span>${esc(it.lab)}</span></div></div>
+      <p class="tiny">貼在實體物品上，交換日現場掃碼即可申請（示意）。</p></div>`);
+  const box = document.getElementById('qrBox');
+  try{
+    if(window.QRCode){ new QRCode(box, {text:`NHRI-SHARE:${it.id}`, width:88, height:88, colorDark:'#13232D', colorLight:'#FFFFFF', correctLevel:QRCode.CorrectLevel.M}); }
+    else box.textContent = it.id;
+  }catch(e){ box.textContent = it.id; }
+}
+
+function freeStart(id){
+  for(let i = 1; i < 14; i++){ const d = addDays(TODAY, i); if(!bookingOn(id, d)) return d; }
+  return addDays(TODAY, 1);
+}
+function openBorrow(id){
+  const it = itemById(id); if(!it) return;
+  const s = freeStart(id), max = addDays(TODAY, 13);
+  openModal(`<div class="m-head"><span class="tiny"><span class="code">${it.id}</span>　${esc(it.lab)}｜${esc(it.loc)}</span><h3 id="mTitle">預約借用：${esc(it.name)}</h3></div>
+    ${stripHTML(id)}
+    <form id="bwForm" data-id="${id}">
+      <div class="row">
+        <div class="field"><label for="bw-s">借用日</label><input id="bw-s" type="date" min="${TODAY}" max="${max}" value="${s}"></div>
+        <div class="field"><label for="bw-e">歸還日</label><input id="bw-e" type="date" min="${TODAY}" max="${max}" value="${s}"></div>
+      </div>
+      <div class="field"><label for="bw-p">用途</label><input id="bw-p" placeholder="例如：拍攝實驗操作教學影片"></div>
+      <div class="btnrow"><button class="btn primary" type="submit">送出借用申請</button><span class="form-err" id="bwErr" role="alert"></span></div>
+    </form>`);
+}
+function openReport(i){
+  const x = S.log[i]; if(!x) return;
+  openModal(`<div class="m-head"><h3 id="mTitle">使用回報：${esc(x.name)}</h3><span class="tiny">${esc(x.from)} → ${esc(x.to)}｜${md(x.date)} 交付</span></div>
+    <form id="rpForm" data-idx="${i}">
+      <fieldset><legend class="legend">物品是否已投入使用？</legend><div class="radio-row">
+        <label for="rp-u1"><input type="radio" name="rp-used" id="rp-u1" value="yes" checked> 已投入使用</label>
+        <label for="rp-u0"><input type="radio" name="rp-used" id="rp-u0" value="no"> 沒有使用</label></div></fieldset>
+      <fieldset id="rpAvoid"><legend class="legend">原本是否確定要採購這項物品？</legend><div class="radio-row">
+        <label for="rp-a1"><input type="radio" name="rp-av" id="rp-a1" value="yes"> 是，因此取消或減量</label>
+        <label for="rp-a0"><input type="radio" name="rp-av" id="rp-a0" value="no" checked> 否，沒有原定採購</label></div>
+        <div class="field" id="rpAmtWrap" hidden><label for="rp-amt">原定採購金額（NT$）</label><input id="rp-amt" type="number" min="0" step="10" inputmode="numeric" placeholder="例如：1200"></div>
+      </fieldset>
+      <div class="field" id="rpNoteWrap" hidden><label for="rp-note">沒有使用的原因</label><input id="rp-note" placeholder="例如：尺寸不合"></div>
+      <div class="btnrow"><button class="btn primary" type="submit">送出回報</button><span class="form-err" id="rpErr" role="alert"></span></div>
+    </form>`);
+}
+function openRepairDone(id){
+  const x = S.repairs.find(r => r.id === id); if(!x) return;
+  openModal(`<div class="m-head"><h3 id="mTitle">完成維修：${esc(x.name)}</h3><span class="tiny">${x.id}｜${esc(x.lab)}</span></div>
+    <form id="rdForm" data-id="${id}">
+      <div class="field"><label for="rd-fix">修法</label><textarea id="rd-fix" rows="2">${esc(x.fix || '')}</textarea></div>
+      <div class="row">
+        <div class="field"><label for="rd-h">工時（小時）</label><input id="rd-h" type="number" min="0" step="0.1" value="${x.hours || 1}"></div>
+        <div class="field"><label for="rd-c">材料費（NT$）</label><input id="rd-c" type="number" min="0" step="5" value="${x.cost || 0}"></div>
+      </div>
+      <div class="field"><label for="rd-v">驗證方式</label><input id="rd-v" placeholder="例如：組裝後開合 30 次無鬆脫"></div>
+      <div class="btnrow"><button class="btn primary" type="submit">完成並通知送修者</button><span class="form-err" id="rdErr" role="alert"></span></div>
+    </form>`);
+}
+function openPrint(id){
+  const d = S.designs.find(x => x.id === id); if(!d) return;
+  openModal(`<div class="m-head"><h3 id="mTitle">申請列印：${esc(d.name)}</h3><span class="tiny">${d.id}｜${d.ver}｜${d.mat}｜適用 ${esc(d.fit)}</span></div>
+    ${d.verified ? '' : '<p class="warnline">此設計只做過外觀確認，尚未實際測試，請自行評估是否適用。</p>'}
+    <form id="prForm" data-id="${id}">
+      <div class="row">
+        <div class="field"><label for="pr-n">數量</label><input id="pr-n" type="number" min="1" max="20" value="1"></div>
+        <div class="field"><label for="pr-lab">所屬單位</label><select id="pr-lab">${labOpts(ME)}</select></div>
+      </div>
+      <div class="field"><label for="pr-use">用途</label><input id="pr-use" placeholder="例如：更換斷裂的攝影燈旋鈕"></div>
+      <div class="btnrow"><button class="btn primary" type="submit">送出列印申請</button></div>
+    </form>`);
+}
+function openBookSkill(id){
+  const s = S.skills.find(x => x.id === id); if(!s) return;
+  const slots = [addDays(TODAY,8)+' 14:00', addDays(TODAY,10)+' 10:30', addDays(TODAY,11)+' 15:00'];
+  openModal(`<div class="m-head"><h3 id="mTitle">預約 30 分鐘協助</h3><span class="tiny">${s.id}｜${esc(s.who)}｜${s.tags.map(esc).join('、')}</span></div>
+    <form id="bkSkForm" data-id="${id}">
+      <fieldset><legend class="legend">選擇時段</legend><div class="radio-row">${slots.map((t,i) => `<label for="sl-${i}"><input type="radio" name="sk-slot" id="sl-${i}" value="${t}" ${i === 0 ? 'checked' : ''}> ${md(t.slice(0,10))}（${wd(t.slice(0,10))}）${t.slice(11)}</label>`).join('')}</div></fieldset>
+      <div class="field"><label for="sk-topic">想討論的問題</label><textarea id="sk-topic" rows="2" placeholder="例如：感測器讀值跳動，想確認濾波做法"></textarea></div>
+      <div class="btnrow"><button class="btn primary" type="submit">送出預約</button><span class="form-err" id="skErr" role="alert"></span></div>
+    </form>`);
+}
+function openAddSkill(){
+  openModal(`<div class="m-head"><h3 id="mTitle">登錄我的專長</h3><span class="tiny">以「${ME}」登錄。每月可預約次數由你決定，隨時可以調整。</span></div>
+    <form id="addSkForm">
+      <fieldset><legend class="legend">專長領域</legend><div class="tagpick">${SKILL_TAGS.map((t,i) => `<label class="pick" for="as-${i}"><input type="checkbox" id="as-${i}" value="${t}">${t}</label>`).join('')}</div></fieldset>
+      <div class="row">
+        <div class="field"><label for="as-who">稱呼</label><input id="as-who" value="${ME}同仁"></div>
+        <div class="field"><label for="as-n">每月可預約次數</label><input id="as-n" type="number" min="1" max="8" value="2"></div>
+      </div>
+      <div class="btnrow"><button class="btn primary" type="submit">登錄</button><span class="form-err" id="asErr" role="alert"></span></div>
+    </form>`);
+}
+
+/* ---------- actions ---------- */
+function copyText(text, btn, selectEl){
+  const ok = () => { btn.textContent = '已複製'; };
+  const fallback = () => {
+    const el = selectEl && document.getElementById(selectEl); if(!el) return;
+    if(el.select){ el.focus(); el.select(); }
+    else { const r = document.createRange(); r.selectNodeContents(el); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); }
+    btn.textContent = '已選取，請按複製';
+  };
+  try{ navigator.clipboard.writeText(text).then(ok).catch(fallback); }catch(e){ fallback(); }
+}
+const findBooking = (itemId, start) => S.bookings.find(b => b.itemId === itemId && b.start === start);
+
+function deliver(it){
+  const n = it.reqQty || 1;
+  S.log.push({date:TODAY, name:`${it.name} ${n} ${it.unit}`, from:it.lab, to:it.reqBy || ME, type:'轉讓', used:null, avoided:null,
+              kg:+((it.unitKg || 0.2) * n).toFixed(2), days:Math.max(1, -daysLeft(it.listed) > 10 ? 3 : 1), hours:0.3});
+  if(n < it.qty){ it.qty -= n; it.status = 'available'; } else { it.status = 'delivered'; }
+  if((it.reqBy || ME) === ME) push(`「${it.name}」已交付，用上之後請回報`, '回報', 'me');
+  delete it.reqQty; delete it.reqBy;
+}
+
+document.addEventListener('click', e => {
+  if(e.target === $('#overlay')){ closeModal(); return; }
+  if(!e.target.closest('#notes') && !e.target.closest('#bellBtn') && !$('#notes').hidden) closeNotes();
+  if(e.target.closest('#bellBtn')){
+    const open = $('#notes').hidden;
+    if(open){ renderNotes(); $('#notes').hidden = false; S.unread = false; renderHeader(); $('#bellBtn').setAttribute('aria-expanded','true'); }
+    else closeNotes();
+    return;
+  }
+  const note = e.target.closest('[data-note]');
+  if(note){ const x = buildNotes()[+note.dataset.note]; if(x) go(x.go, x.sub); return; }
+  const g = e.target.closest('[data-go]');
+  if(g){ go(g.dataset.go, g.dataset.sub); return; }
+  const st = e.target.closest('[data-sub]');
+  if(st){ S.sub = st.dataset.sub; renderItemsSub(); return; }
+  const cat = e.target.closest('[data-cat]');
+  if(cat){ S.cat = cat.dataset.cat; renderCatSeg(); renderFind(); return; }
+  const item = e.target.closest('[data-item]');
+  if(item){ openItem(item.dataset.item); return; }
+  const a = e.target.closest('[data-act]'); if(!a) return;
+  const act = a.dataset.act, id = a.dataset.id;
+  switch(act){
+    case 'close': closeModal(); break;
+    case 'toNeed': go('items','need'); $('#nd-text').value = S.q; $('#nd-text').focus(); break;
+    case 'sqCode': {
+      S.sq++;
+      const code = `SQ-${TODAY.replace(/-/g,'')}-${String(S.sq).padStart(3,'0')}`;
+      $('#sqOut').innerHTML = `<div style="display:grid;gap:8px"><span class="code-out"><span id="sqCodeText">${code}</span><button class="btn small" type="button" data-act="copy" data-text="${code}">複製</button></span>
+        <p class="tiny">提案建議：請購單增列「已查詢共享圈」欄位，附上此編號，讓「先找再買」成為預設流程。</p></div>`;
+      break;
+    }
+    case 'copy': copyText(a.dataset.text, a, a.dataset.sel || 'sqCodeText'); break;
+    case 'copyReport': copyText($('#reportText').value, a, 'reportText'); break;
+    case 'approve': { const it = itemById(id); if(it){ it.status = 'available'; closeModal(); renderAll(); toast('已核可，物資已公開媒合'); } break; }
+    case 'withdraw': { const it = itemById(id); if(it){ it.status = 'withdrawn'; closeModal(); renderAll(); toast(`已下架 ${it.id}，並通知保管人`); } break; }
+    case 'deliver': { const it = itemById(id); if(it){ deliver(it); closeModal(); renderAll(); toast('已記錄交付，等待取得者回報使用情形'); } break; }
+    case 'openBorrow': openBorrow(id); break;
+    case 'report': openReport(+a.dataset.idx); break;
+    case 'returnMine': { const b = findBooking(a.dataset.itemId, a.dataset.start); if(b){ b.status = '已歸還'; renderAll(); toast('已登記歸還，保管人確認後結案'); } break; }
+    case 'bkOk': { const b = findBooking(a.dataset.itemId, a.dataset.start); if(b){ b.status = '已確認'; renderAll(); toast('已同意借用，並通知申請者'); } break; }
+    case 'bkNo': { const i = S.bookings.indexOf(findBooking(a.dataset.itemId, a.dataset.start)); if(i > -1){ S.bookings.splice(i,1); renderAll(); toast('已婉拒，並通知申請者改選日期'); } break; }
+    case 'bkReturn': { const b = findBooking(a.dataset.itemId, a.dataset.start); if(b){ b.status = '已歸還'; renderAll(); toast('已標記歸還'); } break; }
+    case 'nudge': toast(a.dataset.text); break;
+    case 'rpAccept': { const x = S.repairs.find(r => r.id === id); if(x){ x.status = 'doing'; renderAll(); toast(`已接案 ${x.id}，並通知送修者`); } break; }
+    case 'rpDecline': { const x = S.repairs.find(r => r.id === id); if(x){ x.status = 'nofix'; x.fix = '不在受理範圍，建議洽原廠或專業維修'; x.hours = 0.2; renderAll(); toast(`已回覆 ${x.id}：不在受理範圍`); } break; }
+    case 'rpDone': openRepairDone(id); break;
+    case 'printReq': openPrint(id); break;
+    case 'bookSkill': openBookSkill(id); break;
+    case 'addSkill': openAddSkill(); break;
+    case 'showEx': {
+      S.exQ = ''; $('#exQ').value = ''; renderSkills();
+      const el = document.getElementById('card-' + id);
+      if(el){ if(el.scrollIntoView) el.scrollIntoView({block:'center'}); el.style.outline = '2px solid var(--accent)'; setTimeout(() => { el.style.outline = ''; }, 1600); }
+      break;
+    }
+    case 'aiSettings': openAiSettings(); break;
+    case 'aiStart': startSemantic(); break;
+    case 'aiStop': stopSemantic(); break;
+    case 'aiTest': {
+      AI.cfg.ollamaUrl = $('#ai-url').value.trim() || 'http://localhost:11434';
+      AI.cfg.ollamaModel = $('#ai-model').value.trim() || 'qwen2.5:7b'; saveCfg();
+      $('#aiOllamaStatus').textContent = '連線中…';
+      testOllama().then(aiUi); break;
+    }
+    case 'aiCard': openAiCard(id); break;
+    case 'aiCardGen': aiCardGen(id); break;
+    case 'reportAi': reportAi(); break;
+    case 'copyReportAi': copyText($('#reportAiText').value, a, 'reportAiText'); break;
+    case 'needFrom': go('items','need'); $('#nd-text').value = a.dataset.text; $('#nd-text').focus(); break;
+    case 'rsvp': S.going = !S.going; S.rsvp += S.going ? 1 : -1; renderAll(); toast(S.going ? '已報名 11/18 交換日' : '已取消報名'); break;
+  }
+});
+
+$('#followBtn').addEventListener('click', () => {
+  const i = S.follows.indexOf(S.cat);
+  if(i > -1){ S.follows.splice(i,1); toast(`已取消關注「${CATS[S.cat].label}」`); }
+  else { S.follows.push(S.cat); toast(`已關注「${CATS[S.cat].label}」，有新上架會通知你`); }
+  renderCatSeg();
+});
+
+document.addEventListener('change', e => {
+  if(e.target.name === 'rp-used'){ const y = e.target.value === 'yes'; $('#rpAvoid').hidden = !y; $('#rpNoteWrap').hidden = y; }
+  if(e.target.name === 'rp-av'){ $('#rpAmtWrap').hidden = e.target.value !== 'yes'; }
+});
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){ if(!$('#overlay').hidden) closeModal(); else if(!$('#notes').hidden){ closeNotes(); $('#bellBtn').focus(); } }
+  const t = e.target.closest && e.target.closest('.subtab');
+  if(t && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')){
+    const subs = ['find','offer','need','bulk']; const i = subs.indexOf(t.dataset.sub);
+    S.sub = subs[(i + (e.key === 'ArrowRight' ? 1 : 3)) % 4]; renderItemsSub(); $('#st-' + S.sub).focus();
+  }
+});
+
+function runLookup(q){
+  S.q = q.trim(); if(!S.q) return;
+  S.queries.n++;
+  if(smartMatch(S.q, pool()).length) S.queries.found++;
+}
+
+document.addEventListener('submit', e => {
+  e.preventDefault();
+  const f = e.target;
+  switch(f.id){
+    case 'heroLookup': {
+      const q = $('#hq').value; if(!q.trim()){ $('#hq').focus(); return; }
+      runLookup(q); $('#q').value = S.q; S.cat = 'all'; S.mode = 'all'; S.soon = false;
+      $('#modeSel').value = 'all'; $('#soonChk').checked = false;
+      renderAll(); go('items','find'); break;
+    }
+    case 'lookupForm': runLookup($('#q').value); S.q = $('#q').value.trim(); renderAll(); break;
+    case 'offerForm': submitOffer(); break;
+    case 'needForm': submitNeed(); break;
+    case 'tfForm': {
+      const it = itemById(f.dataset.id); if(!it) return;
+      const n = parseInt($('#tf-qty').value, 10);
+      if(!(n >= 1 && n <= it.qty)){ $('#tfErr').textContent = `數量請填 1 到 ${it.qty}`; return; }
+      it.status = 'reserved'; it.reqQty = n; it.reqBy = ME;
+      closeModal(); renderAll(); toast(`已送出轉讓申請：${it.name} ${n} ${it.unit}。保管人確認後會通知你`); break;
+    }
+    case 'bwForm': {
+      const id = f.dataset.id, s = $('#bw-s').value, en = $('#bw-e').value;
+      if(!s || !en){ $('#bwErr').textContent = '請選擇借用日與歸還日'; return; }
+      if(en < s){ $('#bwErr').textContent = '歸還日不能早於借用日'; return; }
+      const clash = S.bookings.find(b => isActive(b) && b.itemId === id && !(en < b.start || s > effEnd(b)));
+      if(clash){ $('#bwErr').textContent = `${md(clash.start)}–${md(effEnd(clash))} 已有人預約，請改選其他日期`; return; }
+      S.bookings.push({itemId:id, start:s, end:en, by:ME, status:'待確認'});
+      closeModal(); renderAll(); toast(`已送出借用申請：${md(s)}${s !== en ? '–' + md(en) : ''}。保管人確認後會通知你`); break;
+    }
+    case 'rpForm': {
+      const x = S.log[+f.dataset.idx]; if(!x) return;
+      const y = document.querySelector('input[name="rp-used"]:checked').value === 'yes';
+      if(y){
+        const av = document.querySelector('input[name="rp-av"]:checked').value === 'yes';
+        let amt = null;
+        if(av){ amt = parseFloat($('#rp-amt').value); if(!(amt > 0)){ $('#rpErr').textContent = '請填寫原定採購金額'; return; } }
+        x.used = true; x.avoided = amt;
+      } else { x.used = false; x.avoided = null; x.note = $('#rp-note').value.trim() || null; }
+      if(x.to === ME) points(`回報「${x.name}」使用情形`, 1);
+      closeModal(); renderAll(); toast('已記錄使用回報，成效指標已更新'); break;
+    }
+    case 'rdForm': {
+      const x = S.repairs.find(r => r.id === f.dataset.id); if(!x) return;
+      const fix = $('#rd-fix').value.trim(), h = parseFloat($('#rd-h').value);
+      if(!fix){ $('#rdErr').textContent = '請填寫修法，讓下一個人可以參考'; return; }
+      x.status = 'done'; x.fix = fix; x.hours = h >= 0 ? h : 1; x.cost = parseFloat($('#rd-c').value) || 0; x.verify = $('#rd-v').value.trim() || '外觀與功能確認';
+      closeModal(); renderAll(); toast(`${x.id} 已完成維修，並通知送修者`); break;
+    }
+    case 'repairForm': {
+      const err = $('#rpErrF'); err.textContent = '';
+      const name = $('#rp-name').value.trim(), issue = $('#rp-issue').value.trim();
+      if(!name || !issue){ err.textContent = '請填寫物品與問題描述'; return; }
+      if(!$('#rp-ok').checked){ err.textContent = '請確認物品在受理範圍內'; return; }
+      const x = {id:'RP-' + String(S.nextRp++).padStart(3,'0'), name, issue, lab:$('#rp-lab').value, status:'new', date:TODAY};
+      S.repairs.push(x); $('#rp-name').value = ''; $('#rp-issue').value = ''; $('#rp-ok').checked = false;
+      renderAll(); toast(`已送出 ${x.id}，維修團隊評估後會回覆你`); break;
+    }
+    case 'prForm': { const d = S.designs.find(x => x.id === f.dataset.id); closeModal(); push(`「${d.name}」列印申請已送出`, '維修', 'repair'); renderAll(); toast('已送出列印申請，完成後會通知你'); break; }
+    case 'bkSkForm': {
+      const s = S.skills.find(x => x.id === f.dataset.id); if(!s) return;
+      if(!$('#sk-topic').value.trim()){ $('#skErr').textContent = '請簡單描述想討論的問題'; return; }
+      const slot = document.querySelector('input[name="sk-slot"]:checked').value;
+      s.slots = Math.max(0, s.slots - 1);
+      push(`已預約 ${s.id}：${md(slot.slice(0,10))} ${slot.slice(11)}`, '技能互助', 'skills');
+      closeModal(); renderAll(); toast(`已送出預約：${md(slot.slice(0,10))} ${slot.slice(11)}，對方確認後會通知你`); break;
+    }
+    case 'addSkForm': {
+      const tags = [...document.querySelectorAll('#addSkForm .pick input:checked')].map(i => i.value);
+      if(!tags.length){ $('#asErr').textContent = '至少選一個專長領域'; return; }
+      S.skills.push({id:'SK-' + String(S.nextSk++).padStart(2,'0'), who:$('#as-who').value.trim() || ME, tags, slots:Math.max(1, parseInt($('#as-n').value,10) || 2)});
+      points('登錄專長', 1); closeModal(); renderAll(); toast('已登錄專長，謝謝你願意協助'); break;
+    }
+    case 'helpForm': {
+      const text = $('#hp-text').value.trim();
+      const tags = [...document.querySelectorAll('#hpTags input:checked')].map(i => i.value);
+      if(!text){ $('#hpErr').textContent = '請描述遇到的問題'; return; }
+      if(!tags.length){ $('#hpErr').textContent = '至少選一個相關領域，才能幫你媒合'; return; }
+      S.helps.unshift({id:'HP-' + String(S.nextHp++).padStart(2,'0'), text, tags, lab:ME});
+      const n = S.skills.filter(s => s.tags.some(t => tags.includes(t))).length;
+      $('#hp-text').value = ''; document.querySelectorAll('#hpTags input').forEach(i => { i.checked = false; }); $('#hpErr').textContent = '';
+      renderAll(); toast(n ? `已送出求助，有 ${n} 位同仁可能可以協助` : '已送出求助，有人登錄相關專長時會通知你'); break;
+    }
+    case 'bulkForm': runBulk(); break;
+    case 'aiCardForm': {
+      const hp = S.helps.find(x => x.id === f.dataset.id);
+      const title = $('#ac-title').value.trim(), fix = $('#ac-fix').value.trim();
+      if(!title || !fix){ $('#acErr').textContent = '至少需要標題與解法'; return; }
+      if(!$('#ac-ok').checked){ $('#acErr').textContent = '請確認雙方都已同意公開'; return; }
+      S.exps.unshift({id:'EX-' + String(S.exps.length + 1).padStart(2,'0'), title, symptom:$('#ac-sym').value.trim() || (hp ? hp.text : ''),
+        cause:$('#ac-cause').value.trim(), fix, limit:$('#ac-lim').value.trim(), tags:hp ? hp.tags : []});
+      closeModal(); renderAll(); toast('已公開經驗卡'); break;
+    }
+    case 'swapForm': {
+      const name = $('#sw-name').value.trim();
+      if(!name){ $('#swErr').textContent = '請填寫物品名稱'; return; }
+      S.swapItems.unshift({name, qty:$('#sw-qty').value.trim() || '未填寫', lab:$('#sw-lab').value});
+      points(`預登記交換日物品「${name}」`, 1);
+      $('#sw-name').value = ''; $('#sw-qty').value = ''; $('#swErr').textContent = '';
+      renderAll(); toast('已預登記，交換日當天記得帶來'); break;
+    }
+  }
+});
+
+function submitOffer(){
+  const err = $('#ofErr'); err.textContent = '';
+  const name = $('#of-name').value.trim(), qty = parseInt($('#of-qty').value, 10);
+  if(!name){ err.textContent = '請填寫品名與規格'; $('#of-name').focus(); return; }
+  if(!(qty >= 1)){ err.textContent = '數量至少為 1'; $('#of-qty').focus(); return; }
+  const asset = $('#of-asset').checked;
+  const it = {
+    id:'NS-' + String(S.nextId++).padStart(4,'0'), name, cat:$('#of-cat').value,
+    mode:document.querySelector('input[name="of-mode"]:checked').value, qty,
+    unit:$('#of-unit').value.trim() || '個', cond:$('#of-cond').value, expiry:$('#of-exp').value || null,
+    lab:$('#of-lab').value, loc:$('#of-loc').value.trim() || '未填寫', groups:Object.keys(hitGroups(name)),
+    status: asset ? 'pending' : 'available', asset, isNew:true, unitKg:0.2, listed:TODAY
+  };
+  S.items.unshift(it); AI.sem.clear();
+  if(it.lab === ME) points(`上架「${name}」`, 1);
+  const hits = S.requests.filter(r => matchItems(r.text, [it]).length);
+  if(S.follows.includes(it.cat)) push(`你關注的「${CATS[it.cat].label}」有新上架：${name}`, '關注', 'items', 'find');
+  $('#ofResult').innerHTML = `<div class="ok-box"><strong>已上架 ${it.id}${asset ? '，等待財產窗口核可' : '，已公開媒合'}</strong>
+    ${hits.length ? `<span>符合 ${hits.length} 筆徵求，已通知徵求者：</span><ul>${hits.map(r => `<li>${esc(r.lab)}：「${esc(r.text)}」</li>`).join('')}</ul>` : '<span>目前沒有符合的徵求，之後有人發出需求時會自動比對。</span>'}
+    <div class="btnrow"><button class="btn small" type="button" data-item="${it.id}">查看物資與標籤</button></div></div>`;
+  toast(hits.length ? `已上架。符合 ${hits.length} 筆徵求，已通知徵求者` : '已上架');
+  $('#of-name').value = ''; $('#of-qty').value = 1; $('#of-unit').value = '個'; $('#of-exp').value = ''; $('#of-loc').value = '';
+  $('#of-asset').checked = false; $('#aiImg').hidden = true; $('#aiPh').hidden = false;
+  S.photo = null; $('#ocrBtn').disabled = true; $('#ocrRaw').hidden = true;
+  $('#aiNote').textContent = '選擇照片後按「辨識標籤」。第一次會下載中英文辨識資料，照片不會上傳。';
+  renderAll();
+}
+function submitNeed(){
+  const err = $('#ndErr'); err.textContent = '';
+  const text = $('#nd-text').value.trim();
+  if(!text){ err.textContent = '請描述你需要什麼'; $('#nd-text').focus(); return; }
+  S.requests.unshift({id:'RQ-' + String(S.nextReq++).padStart(3,'0'), text, qty:$('#nd-qty').value.trim() || '未填寫', needBy:$('#nd-date').value || null, lab:$('#nd-lab').value});
+  const n = smartMatch(text, pool()).length;
+  $('#nd-text').value = ''; $('#nd-qty').value = ''; $('#nd-date').value = '';
+  renderAll();
+  toast(n ? `已發出徵求，找到 ${n} 件可能符合` : '已發出徵求。目前沒有符合物資，有人上架時會通知你');
+}
+
+/* ---------- local AI ---------- */
+const TF_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js';
+const EMB_MODEL = 'Xenova/paraphrase-multilingual-MiniLM-L12-v2';
+const TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+const GROUP_CAT = {}; DEMO.items.forEach(i => (i.groups || []).forEach(g => { GROUP_CAT[g] = i.cat; }));
+const AI = {
+  cfg:{semantic:false, th:0.45, ollamaUrl:'http://localhost:11434', ollamaModel:'qwen2.5:7b'},
+  state:'off', progress:0, err:'', extractor:null,
+  emb:new Map(), sem:new Map(), pending:new Set(), queue:new Set(),
+  ollama:'unknown', ollamaErr:'', ollamaModels:[], ocrWorker:null
+};
+function loadCfg(){ try{ Object.assign(AI.cfg, JSON.parse(localStorage.getItem('nhri-share-ai') || '{}')); }catch(e){} }
+function saveCfg(){ try{ localStorage.setItem('nhri-share-ai', JSON.stringify(AI.cfg)); }catch(e){} }
+let rTimer = null;
+function scheduleRender(){ if(rTimer) return; rTimer = setTimeout(() => { rTimer = null; renderAll(); }, 30); }
+
+async function startSemantic(){
+  if(AI.state === 'loading' || AI.state === 'ready') return;
+  AI.state = 'loading'; AI.progress = 0; AI.err = ''; aiUi();
+  try{
+    const T = await import(TF_URL);
+    const files = {};
+    AI.extractor = await T.pipeline('feature-extraction', EMB_MODEL, {dtype:'q8', progress_callback: p => {
+      if(p && p.status === 'progress' && p.total){
+        files[p.file] = {l:p.loaded, t:p.total};
+        const v = Object.values(files); const tot = v.reduce((a,f) => a + f.t, 0);
+        AI.progress = tot ? v.reduce((a,f) => a + f.l, 0) / tot : 0; aiUi();
+      }
+    }});
+    await embed(S.items.map(itemText));
+    AI.state = 'ready'; AI.cfg.semantic = true; saveCfg(); AI.sem.clear();
+    aiUi(); renderAll(); toast('本機 AI 已就緒，可以用不同說法或一句話描述需求');
+  }catch(e){
+    AI.state = 'error'; AI.err = String((e && e.message) || e); AI.extractor = null;
+    aiUi(); toast('本機 AI 無法載入，已改用關鍵字比對');
+  }
+}
+function stopSemantic(){
+  AI.cfg.semantic = false; saveCfg(); AI.state = 'off'; AI.extractor = null; AI.sem.clear();
+  aiUi(); renderAll(); toast('已停用語意搜尋，改用關鍵字比對');
+}
+const itemText = it => `${it.name}（${CATS[it.cat].label}）`;
+async function embed(texts){
+  const need = [...new Set(texts.filter(t => !AI.emb.has(t)))];
+  if(need.length){
+    const out = await AI.extractor(need, {pooling:'mean', normalize:true});
+    const arr = out.tolist(); need.forEach((t,i) => AI.emb.set(t, arr[i]));
+  }
+  return texts.map(t => AI.emb.get(t));
+}
+const dotp = (a,b) => { let s = 0; for(let i = 0; i < a.length; i++) s += a[i]*b[i]; return s; };
+async function semQuery(q){
+  if(AI.state !== 'ready' || !q || AI.sem.has(q) || AI.pending.has(q)) return;
+  AI.pending.add(q);
+  try{
+    const list = S.items;
+    const [qv] = await embed([q]); const ivs = await embed(list.map(itemText));
+    AI.sem.set(q, list.map((it,i) => ({id:it.id, score:dotp(qv, ivs[i])})).sort((a,b) => b.score - a.score));
+  }catch(e){ AI.sem.set(q, []); }
+  AI.pending.delete(q);
+}
+let semTimer = null;
+function queueSem(q){
+  AI.queue.add(q); clearTimeout(semTimer);
+  semTimer = setTimeout(async () => {
+    const wanted = new Set([S.q, ...S.requests.map(r => r.text), ...((S.bulk && S.bulk.lines) || [])]);
+    const qs = [...AI.queue]; AI.queue.clear();
+    for(const x of qs){ if(wanted.has(x)) await semQuery(x); }
+    scheduleRender();
+  }, 350);
+}
+function smartMatch(text, list){
+  const kw = matchItems(text, list);
+  const q = String(text).trim();
+  if(AI.state !== 'ready' || !q) return kw;
+  const hits = AI.sem.get(q);
+  if(!hits){ queueSem(q); return kw; }
+  const ids = new Set(list.map(i => i.id)), have = new Set(kw.map(m => m.it.id));
+  const extra = hits.filter(h => h.score >= AI.cfg.th && ids.has(h.id) && !have.has(h.id)).slice(0,6).map(h => {
+    const it = itemById(h.id); const a = vol(q), b = vol(it.name);
+    return {it, sem:true, reason:`AI 語意相近 ${Math.round(h.score*100)}%`,
+      warn:(a && b && a !== b) ? `規格不同：需求 ${fmtVol(a)}，此物資 ${fmtVol(b)}，請與保管人確認是否適用` : null};
+  });
+  return kw.concat(extra);
+}
+
+/* label OCR, all in the browser */
+const OCR_STATUS = {'loading tesseract core':'載入辨識核心','initializing tesseract':'初始化','loading language traineddata':'下載語言資料','initializing api':'準備辨識','recognizing text':'辨識文字'};
+function loadScript(src){
+  return new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(new Error('無法載入辨識程式')); document.head.appendChild(el); });
+}
+async function runOcr(file){
+  const note = $('#aiNote');
+  note.textContent = '載入文字辨識…';
+  if(!window.Tesseract) await loadScript(TESS_URL);
+  if(!AI.ocrWorker){
+    AI.ocrWorker = await Tesseract.createWorker(['chi_tra','eng'], 1, {logger: m => {
+      if(m && m.status && typeof m.progress === 'number') note.textContent = `${OCR_STATUS[m.status] || '處理中'}… ${Math.round(m.progress*100)}%`;
+    }});
+  }
+  const {data} = await AI.ocrWorker.recognize(file);
+  return (data && data.text) || '';
+}
+function parseLabel(text){
+  const t = text.replace(/\s+/g, ' ');
+  const r = {};
+  const m = t.match(/(?:exp|expiry|use by|使用期限|有效期限|有效日期|效期)[^\d]{0,12}(20\d{2})[-\/.年 ]?(\d{1,2})(?:[-\/.月 ]?(\d{1,2}))?/i)
+    || t.match(/(20\d{2})[-\/.](\d{1,2})[-\/.](\d{1,2})/) || t.match(/(20\d{2})[-\/.](\d{1,2})(?!\d)/);
+  if(m && +m[2] >= 1 && +m[2] <= 12){
+    const y = m[1], mo = String(+m[2]).padStart(2,'0');
+    const d = m[3] && +m[3] >= 1 && +m[3] <= 31 ? String(+m[3]).padStart(2,'0') : String(new Date(Date.UTC(+y, +mo, 0)).getUTCDate()).padStart(2,'0');
+    r.expiry = `${y}-${mo}-${d}`;
+  }
+  const c = t.match(/(?:cat\.?\s*(?:no\.?)?|catalog|ref|貨號|品號)\s*[:#：]?\s*([A-Z0-9][A-Z0-9\-.]{2,})/i); if(c) r.catNo = c[1];
+  const v = t.match(/(\d+(?:\.\d+)?)\s*(µl|μl|ul|ml)\b/i); if(v) r.vol = v[0];
+  const pk = t.match(/(\d+)\s*(支|片|入|個|pcs|pieces|tips)/i); if(pk) r.pack = pk[0];
+  const lines = text.split(/\n+/).map(l => l.trim()).filter(l => /[A-Za-z一-鿿]{2,}/.test(l));
+  const cand = lines.slice(0,6).sort((a,b) => b.length - a.length);
+  if(cand.length){
+    let n = cand[0].slice(0,60);
+    if(r.vol && !n.includes(r.vol)) n = `${r.vol} ${n}`;
+    if(r.pack && !n.includes(r.pack)) n += `（${r.pack}）`;
+    r.name = n;
+  }
+  return r;
+}
+const validDate = s => /^20\d{2}-\d{2}-\d{2}$/.test(String(s || '')) ? s : null;
+function applyLabel(r){
+  if(r.name){ $('#of-name').value = r.name; }
+  if(r.expiry){ $('#of-exp').value = r.expiry; }
+  if(r.qty && +r.qty > 0){ $('#of-qty').value = Math.round(+r.qty); }
+  if(r.unit){ $('#of-unit').value = String(r.unit).slice(0,6); }
+  let cat = CATS[r.cat] ? r.cat : null;
+  if(!cat){ const g = Object.keys(hitGroups($('#of-name').value)); if(g.length && GROUP_CAT[g[0]]) cat = GROUP_CAT[g[0]]; }
+  if(cat) $('#of-cat').value = cat;
+  $('#of-mode-t').checked = true;
+}
+const LABEL_PROMPT = '你會收到實驗室物品標籤的 OCR 文字，可能有辨識錯誤。請整理成 JSON：{"name":"品名","spec":"規格，例如 1000 µL、96 支/盒","catalog":"目錄編號","expiry":"YYYY-MM-DD，沒有就空字串","quantity":數字或 null,"unit":"單位","category":"consumable、part、tool、office、pack 其中之一"}。不確定的欄位留空，不要猜測。只輸出 JSON。';
+const CARD_PROMPT = '你是研究機構的技術支援助理。根據求助內容與解決過程，整理成一張排錯經驗卡。使用繁體中文，簡潔具體，不要編造過程中沒有提到的資訊。只輸出 JSON：{"title":"","symptom":"","cause":"","fix":"","limit":""}';
+const REPORT_PROMPT = '你是研究機構 ESG 推動小組的文書助理。把使用者提供的成效摘要改寫成一段約 150 字的繁體中文說明，語氣正式。只能使用摘要裡的數字，不要新增數字、比例或推論。只輸出段落本身。';
+
+/* optional local language model through Ollama */
+const ollamaBase = () => (AI.cfg.ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');
+async function testOllama(){
+  try{
+    const r = await fetch(ollamaBase() + '/api/tags');
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    AI.ollamaModels = (j.models || []).map(m => m.name); AI.ollama = 'ok'; AI.ollamaErr = '';
+  }catch(e){ AI.ollama = 'error'; AI.ollamaErr = String((e && e.message) || e); }
+}
+async function ollamaChat(messages, json){
+  const r = await fetch(ollamaBase() + '/api/chat', {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(Object.assign({model:AI.cfg.ollamaModel, messages, stream:false, options:{temperature:0.2}}, json ? {format:'json'} : {}))});
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  return String((j.message && j.message.content) || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+}
+async function ollamaJSON(messages){
+  const t = await ollamaChat(messages, true);
+  try{ return JSON.parse(t); }catch(e){ const m = t.match(/\{[\s\S]*\}/); if(m) return JSON.parse(m[0]); throw new Error('回傳格式無法解析'); }
+}
+async function ensureOllama(openSettings){
+  if(AI.ollama !== 'ok') await testOllama();
+  if(AI.ollama === 'ok') return true;
+  if(openSettings){ toast('還沒連上本機語言模型，請在「AI」設定確認 Ollama 位址'); openAiSettings(); }
+  return false;
+}
+
+function aiUi(){
+  const d = $('#aiDot');
+  d.className = 'ai-dot' + (AI.state === 'ready' ? ' ready' : AI.state === 'loading' ? ' loading' : AI.state === 'error' ? ' error' : '');
+  const lbl = AI.state === 'ready' ? '本機 AI：已就緒' : AI.state === 'loading' ? `本機 AI：下載中 ${Math.round(AI.progress*100)}%` : AI.state === 'error' ? '本機 AI：無法載入' : '本機 AI：未啟用';
+  $('#aiBtn').setAttribute('aria-label', lbl + '，開啟設定'); $('#aiBtn').title = lbl;
+  const on = AI.state === 'ready';
+  $('#heroHint').textContent = on ? '本機 AI 已就緒：可以直接描述用途，或用不同的說法搜尋。' : '支援同義詞：輸入「鋁型材」也找得到「鋁擠型」。開啟右上角「AI」，可以用一句話描述需求。';
+  $('#findHint').textContent = on ? '本機 AI 已就緒：關鍵字找不到時，會再用語意比對，結果標示為「AI 語意相近」。' : '同義詞媒合：輸入「鋁型材」也找得到「鋁擠型」。開啟右上角「AI」，寫法不同也比對得到。';
+  renderAiSem();
+}
+function renderAiSem(){
+  const box = document.getElementById('aiSemBox'); if(!box) return;
+  if(AI.state === 'ready') box.innerHTML = '<div class="ai-state"><span class="badge ok">語意搜尋已就緒</span><button class="btn small quiet" type="button" data-act="aiStop">停用</button></div>';
+  else if(AI.state === 'loading') box.innerHTML = `<div class="ai-state"><span class="badge wait">下載中 ${Math.round(AI.progress*100)}%</span></div><div class="cap-bar"><div class="cap-fill" style="width:${Math.round(AI.progress*100)}%"></div></div>`;
+  else if(AI.state === 'error') box.innerHTML = `<div class="ai-state"><span class="badge bad">無法載入</span><button class="btn small" type="button" data-act="aiStart">重試</button></div><p class="tiny">${esc(AI.err)}。需要可連到 cdn.jsdelivr.net 與 huggingface.co 的網路；請用 Chrome 或 Edge，並以網址開啟（不要直接點兩下 HTML 檔）。</p>`;
+  else box.innerHTML = '<div class="ai-state"><button class="btn small primary" type="button" data-act="aiStart">啟用語意搜尋</button><span class="tiny">第一次會下載模型，之後由瀏覽器快取。</span></div>';
+  const st = document.getElementById('aiOllamaStatus');
+  if(st) st.textContent = AI.ollama === 'ok' ? `已連線。可用模型：${AI.ollamaModels.join('、') || '（尚未下載模型）'}${AI.ollamaModels.length && !AI.ollamaModels.some(n => n === AI.cfg.ollamaModel || n.startsWith(AI.cfg.ollamaModel + ':')) ? `。找不到「${AI.cfg.ollamaModel}」，請改填上面列出的名稱` : ''}`
+    : AI.ollama === 'error' ? `無法連線（${AI.ollamaErr}）。請確認 Ollama 已啟動，並設定 OLLAMA_ORIGINS。` : '尚未測試。';
+}
+function openAiSettings(){
+  openModal(`<div class="m-head"><h3 id="mTitle">本機 AI</h3><span class="tiny">資料只在你的瀏覽器，或你指定的院內電腦上處理，不會送到外部 AI 服務。網路只用來第一次下載模型檔。</span></div>
+    <div class="ai-sec"><h3>瀏覽器內模型</h3>
+      <dl class="dl"><dt>語意搜尋</dt><dd>多語言句向量模型，約 100 多 MB，用於找物資、媒合徵求、請購清單比對</dd><dt>標籤辨識</dt><dd>Tesseract 繁體中文與英文，在「我要上架」第一次辨識時下載</dd></dl>
+      <div id="aiSemBox"></div>
+      <div class="field"><label for="ai-th">語意相似度門檻：<span id="ai-thv">${Math.round(AI.cfg.th*100)}%</span></label><input type="range" id="ai-th" min="0.3" max="0.8" step="0.05" value="${AI.cfg.th}"><span class="tiny">調高結果較少但較準，調低會出現較多候選。</span></div>
+    </div>
+    <div class="ai-sec"><h3>本機語言模型（選配）</h3>
+      <p class="tiny">用於整理經驗卡、改寫月報段落、整理標籤欄位。需要在院內電腦或伺服器安裝 Ollama 並下載模型。</p>
+      <div class="row">
+        <div class="field"><label for="ai-url">Ollama 位址</label><input id="ai-url" value="${esc(AI.cfg.ollamaUrl)}"></div>
+        <div class="field"><label for="ai-model">模型名稱</label><input id="ai-model" value="${esc(AI.cfg.ollamaModel)}"></div>
+      </div>
+      <div class="btnrow"><button class="btn" type="button" data-act="aiTest">儲存並測試連線</button></div>
+      <p class="tiny" id="aiOllamaStatus" aria-live="polite"></p>
+      <p class="tiny">從這個網站連到 Ollama 時，Ollama 需設定 OLLAMA_ORIGINS 允許 ${esc(location.origin)}；瀏覽器也可能詢問是否允許存取區域網路。設定方式見 GitHub 上的 README。</p>
+    </div>`);
+  renderAiSem();
+}
+function openAiCard(id){
+  const h = S.helps.find(x => x.id === id); if(!h) return;
+  openModal(`<div class="m-head"><h3 id="mTitle">整理成經驗卡</h3><span class="tiny">${h.id}｜${esc(h.text)}</span></div>
+    <form id="aiCardForm" data-id="${id}">
+      <div class="field"><label for="ac-notes">解決過程</label><textarea id="ac-notes" rows="4" placeholder="貼上雙方的對話或筆記，例如：改用短接地彈簧、電源線移開後雜訊消失"></textarea></div>
+      <div class="btnrow"><button class="btn" type="button" data-act="aiCardGen" data-id="${id}">用本機 AI 產生草稿</button><span class="tiny" id="acStatus" aria-live="polite">沒有接上本機語言模型時，也可以直接手動填寫。</span></div>
+      <div class="field"><label for="ac-title">標題</label><input id="ac-title"></div>
+      <div class="field"><label for="ac-sym">症狀</label><textarea id="ac-sym" rows="2"></textarea></div>
+      <div class="field"><label for="ac-cause">可能原因</label><textarea id="ac-cause" rows="2"></textarea></div>
+      <div class="field"><label for="ac-fix">解法</label><textarea id="ac-fix" rows="2"></textarea></div>
+      <div class="field"><label for="ac-lim">適用限制</label><input id="ac-lim"></div>
+      <label class="check strong" for="ac-ok"><input type="checkbox" id="ac-ok"> 求助者與協助者都已確認內容正確，可以公開</label>
+      <div class="btnrow"><button class="btn primary" type="submit">公開經驗卡</button><span class="form-err" id="acErr" role="alert"></span></div>
+    </form>`);
+}
+async function aiCardGen(id){
+  const h = S.helps.find(x => x.id === id); const st = $('#acStatus');
+  const notes = $('#ac-notes').value.trim();
+  if(!notes){ st.textContent = '請先貼上解決過程'; return; }
+  st.textContent = '連線本機語言模型…';
+  if(!(await ensureOllama(false))){ st.textContent = '還沒連上本機語言模型。可以直接手動填寫，或先到右上角「AI」設定 Ollama。'; return; }
+  st.textContent = '本機語言模型整理中…';
+  try{
+    const j = await ollamaJSON([{role:'system', content:CARD_PROMPT},{role:'user', content:`求助內容：${h.text}\n相關領域：${h.tags.join('、')}\n解決過程：${notes}`}]);
+    $('#ac-title').value = j.title || ''; $('#ac-sym').value = j.symptom || ''; $('#ac-cause').value = j.cause || '';
+    $('#ac-fix').value = j.fix || ''; $('#ac-lim').value = j.limit || '';
+    st.textContent = 'AI 草稿已填入，請雙方確認後再公開。';
+  }catch(e){ st.textContent = `整理失敗（${(e && e.message) || e}），可以直接手動填寫。`; }
+}
+async function reportAi(){
+  const st = $('#reportAiStatus');
+  st.textContent = '連線本機語言模型…';
+  if(!(await ensureOllama(true))){ st.textContent = ''; return; }
+  st.textContent = '本機語言模型撰寫中…';
+  try{
+    $('#reportAiText').value = await ollamaChat([{role:'system', content:REPORT_PROMPT},{role:'user', content:$('#reportText').value}]);
+    $('#reportAiWrap').hidden = false; st.textContent = '';
+  }catch(e){ st.textContent = `撰寫失敗（${(e && e.message) || e}）`; }
+}
+
+/* purchase-list comparison */
+async function runBulk(){
+  const lines = $('#bulkText').value.split('\n').map(l => l.trim()).filter(Boolean).slice(0,40);
+  if(!lines.length){ $('#bulkStatus').textContent = '請貼上至少一項'; return; }
+  S.sq++;
+  const code = `SQ-${TODAY.replace(/-/g,'')}-${String(S.sq).padStart(3,'0')}`;
+  if(AI.state === 'ready'){ $('#bulkStatus').textContent = '本機 AI 比對中…'; for(const l of lines) await semQuery(l); }
+  const found = lines.filter(l => smartMatch(l, pool()).length).length;
+  S.queries.n += lines.length; S.queries.found += found;
+  S.bulk = {lines, code};
+  $('#bulkStatus').textContent = '';
+  renderAll();
+}
+function renderBulk(){
+  const box = $('#bulkResult');
+  if(!S.bulk){ box.hidden = true; box.innerHTML = ''; return; }
+  const list = pool();
+  const rows = S.bulk.lines.map(l => ({l, m:smartMatch(l, list)}));
+  const hit = rows.filter(r => r.m.length).length;
+  box.hidden = false;
+  box.innerHTML = `<div class="block-head"><h3>${rows.length} 項中有 ${hit} 項院內可能已有</h3>
+      <span class="code-out"><span id="bulkCode">${S.bulk.code}</span><button class="btn small" type="button" data-act="copy" data-sel="bulkCode" data-text="${S.bulk.code}">複製查詢編號</button></span></div>
+    <div class="table-wrap"><table class="bulk-table"><thead><tr><th>清單項目</th><th>院內候選</th><th>比對依據</th><th></th></tr></thead><tbody>${rows.map(r => {
+      if(!r.m.length) return `<tr><td>${esc(r.l)}</td><td class="muted">院內暫無</td><td></td><td><button class="btn small" type="button" data-act="needFrom" data-text="${esc(r.l)}">發出徵求</button></td></tr>`;
+      const x = r.m[0];
+      return `<tr><td>${esc(r.l)}</td><td><b>${esc(x.it.name)}</b><div class="tiny">${x.it.id}｜${esc(x.it.lab)}｜${x.it.qty} ${esc(x.it.unit)}${r.m.length > 1 ? `｜另有 ${r.m.length - 1} 件候選` : ''}</div>${x.warn ? `<div class="warnline">${esc(x.warn)}</div>` : ''}</td>
+        <td><span class="chip match${x.sem ? ' ai' : ''}">${esc(x.reason)}</span></td><td><button class="btn small" type="button" data-item="${x.it.id}">查看</button></td></tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+
+/* ---------- static bindings ---------- */
+$('#q').addEventListener('input', e => { S.q = e.target.value.trim(); renderFind(); });
+$('#exQ').addEventListener('input', e => { S.exQ = e.target.value.trim(); renderSkills(); });
+$('#modeSel').addEventListener('change', e => { S.mode = e.target.value; renderFind(); });
+$('#soonChk').addEventListener('change', e => { S.soon = e.target.checked; renderFind(); });
+$('#roleSel').addEventListener('change', e => {
+  S.role = e.target.value;
+  if(S.role !== 'admin' && S.page === 'admin') go('home');
+  renderAll(); toast(S.role === 'admin' ? '已切換為管理端，可處理核可、交付與維修' : '已切換為一般同仁');
+});
+$('#resetBtn').addEventListener('click', () => {
+  seed(); ['q','hq','exQ'].forEach(i => { $('#' + i).value = ''; });
+  $('#modeSel').value = 'all'; $('#soonChk').checked = false; $('#ofResult').innerHTML = '';
+  renderAll(); go('home'); toast('已恢復示範資料');
+});
+$('#photo').addEventListener('change', e => {
+  const file = e.target.files && e.target.files[0]; if(!file) return;
+  const rd = new FileReader();
+  S.photo = file; $('#ocrBtn').disabled = false;
+  rd.onload = () => { $('#aiImg').src = rd.result; $('#aiImg').hidden = false; $('#aiPh').hidden = true;
+    $('#aiNote').textContent = '已選擇照片，按「辨識標籤」開始。照片只在你的瀏覽器裡處理。'; };
+  rd.readAsDataURL(file);
+});
+$('#aiFill').addEventListener('click', () => {
+  $('#of-name').value = '1000 µL 微量吸管尖（盒裝 96 支）';
+  $('#of-cat').value = 'consumable'; $('#of-cond').value = '全新未拆';
+  $('#of-mode-t').checked = true; $('#of-qty').value = 6; $('#of-unit').value = '盒';
+  $('#of-exp').value = '2027-06-30'; $('#of-loc').value = '示範大樓 3F'; $('#of-lab').value = ME;
+  $('#aiNote').textContent = '已帶入示範結果：品名、規格 1000 µL、包裝 96 支／盒、效期 2027-06-30。請確認後送出。';
+});
+$('#of-cat').innerHTML = Object.entries(CATS).map(([k,v]) => `<option value="${k}">${v.label}</option>`).join('');
+['#of-lab','#nd-lab','#rp-lab','#sw-lab'].forEach(s => { $(s).innerHTML = labOpts(ME); });
+$('#hpTags').innerHTML = SKILL_TAGS.map((t,i) => `<label class="pick" for="hp-${i}"><input type="checkbox" id="hp-${i}" value="${t}">${t}</label>`).join('');
+$('#nd-date').min = TODAY;
+
+document.addEventListener('input', e => {
+  if(e.target.id === 'ai-th'){ AI.cfg.th = +e.target.value; saveCfg(); $('#ai-thv').textContent = Math.round(AI.cfg.th*100) + '%'; scheduleRender(); }
+});
+$('#ocrBtn').addEventListener('click', async () => {
+  if(!S.photo) return;
+  const btn = $('#ocrBtn'); btn.disabled = true;
+  try{
+    const text = await runOcr(S.photo);
+    $('#ocrText').textContent = text.trim() || '（沒有讀到文字）'; $('#ocrRaw').hidden = false;
+    const r = parseLabel(text); applyLabel(r);
+    let msg = (r.name || r.expiry) ? '已帶入辨識結果，請逐欄確認後再送出。' : '沒有讀到可用的欄位，請手動填寫，或換一張更清楚、正面的照片。';
+    if(AI.ollama === 'ok' && text.trim()){
+      $('#aiNote').textContent = '本機語言模型整理欄位中…';
+      try{
+        const j = await ollamaJSON([{role:'system', content:LABEL_PROMPT},{role:'user', content:text}]);
+        applyLabel({name:[j.name, j.spec].filter(Boolean).join(' ') || null, expiry:validDate(j.expiry), qty:j.quantity, unit:j.unit, cat:j.category});
+        msg = '已由本機語言模型整理欄位（AI 草稿），請逐欄確認後再送出。';
+      }catch(e){ msg += '（本機語言模型整理失敗，已改用規則判讀）'; }
+    }
+    $('#aiNote').textContent = msg;
+  }catch(e){
+    $('#aiNote').textContent = `文字辨識無法使用（${(e && e.message) || e}）。請確認網路可以連到 cdn.jsdelivr.net，並以網址開啟網頁。`;
+  }
+  btn.disabled = false;
+});
+
+loadCfg();
+seed();
+renderAll();
+aiUi();
+if(AI.cfg.semantic) startSemantic();
+const h = (location.hash || '').slice(1);
+go(PAGES.includes(h) && h !== 'admin' ? h : 'home');
+})();
+</script>
+</body>
+</html>
